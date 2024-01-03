@@ -3,13 +3,13 @@
 ## Struct
 
 ```@docs
-MPMPtsGen.PointCloud
+MaterialPointGenerator.PointCloud
 ```
 
 ## Functions
 
 ```@docs
-MPMPtsGen.read_pointcloud
-MPMPtsGen.write_pointcloud
-MPMPtsGen.mp_generate
+MaterialPointGenerator.read_pointcloud
+MaterialPointGenerator.write_pointcloud
+MaterialPointGenerator.mp_generate
 ```

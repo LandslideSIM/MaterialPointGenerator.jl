@@ -1,4 +1,4 @@
-module MPMPtsGen
+module MaterialPointGenerator
 
 using Interpolations
 using DelimitedFiles

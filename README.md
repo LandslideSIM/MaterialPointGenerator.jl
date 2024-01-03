@@ -1,11 +1,11 @@
-# MPMPtsGen <img src="docs/src/assets/logo.png" align="right" height="126" />
+# MaterialPointGenerator <img src="docs/src/assets/logo.png" align="right" height="126" />
 
-[![CI](https://github.com/LandslideSIM/MPMPtsGen.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/LandslideSIM/MPMPtsGen.jl/actions/workflows/ci.yml) 
-[![codecov](https://codecov.io/gh/LandslideSIM/MPMPtsGen.jl/graph/badge.svg?token=3P72U13J10)](https://codecov.io/gh/LandslideSIM/MPMPtsGen.jl)
-[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://LandslideSIM.github.io/MPMPtsGen.jl/stable)
+[![CI](https://github.com/LandslideSIM/MaterialPointGenerator.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/LandslideSIM/MaterialPointGenerator.jl/actions/workflows/ci.yml) 
+[![codecov](https://codecov.io/gh/LandslideSIM/MaterialPointGenerator.jl/graph/badge.svg?token=3P72U13J10)](https://codecov.io/gh/LandslideSIM/MaterialPointGenerator.jl)
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://LandslideSIM.github.io/MaterialPointGenerator.jl/stable)
 
 <p>
-This package is used for generating structured points for MPM simulation. Currently, there are some limitations in this package, please follow the <a href="https://LandslideSIM.github.io/MPMPtsGen.jl/stable">documentation</a> step-by-step to reproduce the results.
+This package is used for generating structured points for Material Point Method (MPM) simulation. Currently, there are some limitations in this package, please follow the <a href="https://LandslideSIM.github.io/MaterialPointGenerator.jl/stable">documentation</a> step-by-step to reproduce the results.
 </p>
 
 ---
@@ -16,7 +16,7 @@ Just type <kbd>]</kbd> in Julia's  `REPL`:
 
 ```julia
 julia> ]
-(@1.9) Pkg> add MPMPtsGen
+(@1.10) Pkg> add MaterialPointGenerator
 ```
 
 ## Features ✨

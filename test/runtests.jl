@@ -1,7 +1,7 @@
-using MPMPtsGen
+using MaterialPointGenerator
 using Test
 
-@testset "MPMPtsGen.jl.jl" begin
+@testset "MaterialPointGenerator.jl" begin
     # num_x           = length(1:1:20)
     # num_y           = length(1:1:20)
     # x_tmp           = repeat((1.0:1.0:20.0)', num_y, 1) |> vec

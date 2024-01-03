@@ -1,4 +1,4 @@
-name = "MPMPtsGen"
+name = "MaterialPointGenerator"
 uuid = "18deba1c-5063-41ee-a388-01f264c5a914"
 authors = ["ZenanH <zenan.huo@outlook.com>"]
 version = "0.1.0"
@@ -10,5 +10,6 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
-julia = "1.10"
+DelimitedFiles = "1"
 Interpolations = "0.15"
+julia = "1.10"

@@ -1,5 +1,5 @@
 [deps]
-MPMPtsGen = "18deba1c-5063-41ee-a388-01f264c5a914"
+MaterialPointGenerator = "18deba1c-5063-41ee-a388-01f264c5a914"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterTools = "35a29f4d-8980-5a13-9543-d66fff28ecb8"
 

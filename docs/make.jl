@@ -1,8 +1,8 @@
-using Documenter, MPMPtsGen, DocumenterTools
+using Documenter, MaterialPointGenerator, DocumenterTools
 
 makedocs(
-    modules=[MPMPtsGen],
-    sitename = "MPMPtsGen.jl",
+    modules=[MaterialPointGenerator],
+    sitename = "MaterialPointGenerator.jl",
     authors = "Zenan Huo",
     pages = [
         "Home" => "index.md",
@@ -25,7 +25,7 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/LandslideSIM/MPMPtsGen.jl.git",
+    repo = "github.com/LandslideSIM/MaterialPointGenerator.jl.git",
     target = "build",
     branch = "gh-pages",
     versions = ["stable" => "v^", "v#.#"],
