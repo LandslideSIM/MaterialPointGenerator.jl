@@ -24,3 +24,10 @@ dem2particle
 surrogateDEM
 MaterialPointGenerator.rbf_compute!
 ```
+
+## Utils
+```@docs
+savexyz
+readxyz
+sortbycol
+```
