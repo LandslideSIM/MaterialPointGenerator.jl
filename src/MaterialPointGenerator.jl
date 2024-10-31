@@ -54,6 +54,8 @@ include(joinpath(@__DIR__, "utils.jl"        ))
             savexyz(joinpath(testassets, "testutils.xyz"), a)
             b = readxyz(joinpath(testassets, "testutils.xyz"))
             rm(joinpath(testassets, "testutils.xyz"))
+            a = [1 2 3; 2 1 5; 3 1 2]
+            b = sortbycol(a, 3)
         end
     end
 end;
