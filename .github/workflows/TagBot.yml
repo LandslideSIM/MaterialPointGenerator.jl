@@ -1,5 +1,7 @@
 name: TagBot
 on:
+  schedule:
+    - cron: "0 0 * * *"  # run once a day
   issue_comment:
     types:
       - created
