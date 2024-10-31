@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main # update to match your development branch (master, main, dev, trunk, ...)
-    tags: '*'  # 触发所有标签的构建
+    tags: '*'
   pull_request:
 
 jobs:
@@ -21,14 +21,8 @@ jobs:
         with:
           version: '1'
       - uses: julia-actions/cache@v2
-      
-      # 新增的标签检查步骤
-      - name: Check tags
-        run: git fetch --tags && git tag
-      
       - name: Install dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-      
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token

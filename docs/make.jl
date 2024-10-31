@@ -31,5 +31,5 @@ deploydocs(
     repo = "github.com/LandslideSIM/MaterialPointGenerator.jl.git",
     target = "build",
     branch = "gh-pages",
-    versions = ["stable" => "v^", "v#.#"],
+    versions=["stable" => "v^", "dev" => "dev"]
 )
