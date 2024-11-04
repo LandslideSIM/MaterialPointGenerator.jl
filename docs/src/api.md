@@ -21,6 +21,13 @@ MaterialPointGenerator.gmsh_mesh3D
 ## DEM
 ```@docs
 dem2particle
-surrogateDEM
+rasterizeDEM
 MaterialPointGenerator.rbf_compute!
+```
+
+## Utils
+```@docs
+savexyz
+readxyz
+sortbycol
 ```

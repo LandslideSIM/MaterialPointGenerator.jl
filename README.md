@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/LandslideSIM/MaterialPointGenerator.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/LandslideSIM/MaterialPointGenerator.jl/actions/workflows/ci.yml) 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg?logo=quicklook)](https://LandslideSIM.github.io/MaterialPointGenerator.jl/stable)
-[![Version](https://img.shields.io/badge/version-v0.1.3-pink)]()
+[![Version](https://img.shields.io/badge/version-v0.1.4-pink)]()
 
 This package is used for generating structured particles for Material Point Method (MPM) simulation. The current particle generation method using `Gmsh` modeling may require GPU acceleration. We have provided a backend-agnostic solution that supports switching between NVIDIA (CUDA), AMD (ROCm), Apple (Metal), and Intel (oneAPI). Please follow the [documentation](https://LandslideSIM.github.io/MaterialPointGenerator.jl/stable) step-by-step to reproduce the results.
 
