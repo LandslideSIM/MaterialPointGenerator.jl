@@ -15,6 +15,6 @@ rst = readxyz(joinpath(testassets, "dem2.xyz"))
 # test DEM interpolation by surrogate method (RBF)
 tmp = meshbuilder(0 : 0.5 : 5, 0 : 0.5 : 5)
 dem = hcat(tmp, cos.(tmp[:, 1]) .* sin.(tmp[:, 2]))
-pts = surrogateDEM(0.6, 0.6, dem)
+pts = rasterizeDEM(0.6, 0.6, dem)
 rst = readxyz(joinpath(testassets, "dem3.xyz"))
 @test rst ≈ pts

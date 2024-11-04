@@ -6,76 +6,96 @@
 |  Programmer : Zenan Huo                                                                  |
 |  Start Date : 01/01/2022                                                                 |
 |  Affiliation: Risk Group, UNIL-ISTE                                                      |
-|  Functions  : 01. rbf_compute!                                                           |
-|               02. surrogateDEM                                                           |
+|  Functions  : 01. IDW!                                                                   |
+|               02. rasterizeDEM                                                           |
 |               03. dem2particle                                                           |
 +==========================================================================================#
 
 export dem2particle
-export surrogateDEM
+export rasterizeDEM
 
 """
-    rbf_compute!(ptslist, x2, rbf_model)
+    IDW!(k, p, dem, idxs, ptslist, tree)
 
 Description:
 ---
-Compute the value of the RBF model at the given points. `ptslist` is a 2D array with three
-columns (x, y, z). `x2` is a 1D array with two columns (x, y). `rbf_model` is a
-`RadialBasis` model.
+Inverse Distance Weighting (IDW) interpolation method. `k` is the number of nearest 
+neighbors, `p` is the power parameter, `dem` is a coordinates Array with three columns 
+`(x, y, z)`, `idxs` is the index of the nearest neighbors, `ptslist` is the coordinates 
+Array of the particles, `tree` is the KDTree of the DEM.
 """
-@views function rbf_compute!(ptslist, x2, rbf_model::T) where T <: RadialBasis
-    @inbounds Threads.@threads for i in axes(x2, 1)
-        ptslist[i, 3] = rbf_model(x2[i])
+@views function IDW!(k::Int, p::Int, dem, idxs, ptslist, tree::KDTree)
+    @inbounds Threads.@threads for i in axes(ptslist, 1)
+        idxs[i, :] .= knn(tree, ptslist[i, :], k, true)[1]
+        weighted_sum = 0.0
+        weight_total = 0.0
+        for j in 1:k
+            dx = dem[idxs[i, j], 1] - ptslist[i, 1]
+            dy = dem[idxs[i, j], 2] - ptslist[i, 2]
+            distance = sqrt(dx * dx + dy * dy)
+            if distance ≤ 1e-6
+                ptslist[i, 3] = dem[idxs[i, j], 3]
+                break
+            else
+                weight = 1.0 / distance^p
+                weighted_sum += weight * dem[idxs[i, j], 3]
+                weight_total += weight
+            end
+        end
+        # safty check
+        if weight_total > 1e-6
+            ptslist[i, 3] = weighted_sum / weight_total
+        else
+            ptslist[i, 3] = sum(dem[idxs[i, :], 3]) / k
+        end
     end
     return nothing
 end
 
 """
-    surrogateDEM(lpx, lpy, dem; trimbounds, dembounds)
+    rasterizeDEM(lpx, lpy, dem; k=10, p=2, trimbounds=[0.0 0.0], dembounds=[0.0, 0.0])
 
 Description:
 ---
-Generate particles from a given DEM file. `lpx` and `lpy` are the space of particles in `x` 
-and `y` directions, respectively. `dem` is a coordinates Array with three columns (x, y, z).
-`trimbounds` is the bounding box of the particles, if not given, it will be the minimum and 
-maximum of the DEM file. `dembounds` is the bounding box of the DEM file, this is for a DEM 
-which is not a rectangle area, so `dembounds` represents the polygon of the DEM, the 
-returned particles will be inside this polygon.
+Rasterize the DEM file to generate particles. `lpx` and `lpy` are the space of particles in
+`x` and `y` directions. `dem` is a coordinates Array with three columns `(x, y, z)`. `k` is 
+the number of nearest neighbors (10 by default), `p` is the power parameter (2 by default), 
+`trimbounds` is the boundary of the particles, `dembounds` is the boundary of the DEM.
 """
-@views function surrogateDEM(
-    lpx, lpy, 
-    dem       ::T2;
-    trimbounds::T1 = [0.0],
-    dembounds ::T2 = [0.0 0.0]
-) where {T1 <: Array{Float64, 1}, T2 <: Array{Float64, 2}}
-    if trimbounds == [0]
-        trimbounds = [minimum(dem[:, 1]), maximum(dem[:, 1]), 
-                      minimum(dem[:, 2]), maximum(dem[:, 2])]
+@views function rasterizeDEM(
+    lpx, lpy, dem::T1; k::Int=10, p::Int=2, 
+    trimbounds::T1 = [0.0 0.0], dembounds::T2 = [0.0, 0.0]
+) where {T1 <: Array{Float64, 2}, T2 <: Array{Float64, 1}}
+    dem_xmin = minimum(dem[:, 1])
+    dem_xmax = maximum(dem[:, 1])
+    dem_ymin = minimum(dem[:, 2])
+    dem_ymax = maximum(dem[:, 2])
+    # get particles from DEM domain
+    if dembounds ≠ [0.0, 0.0]
+        @info "DEM domain is specified"
+        dem_xmin = dembounds[1]
+        dem_xmax = dembounds[2]
+        dem_ymin = dembounds[3]
+        dem_ymax = dembounds[4]
     end
-    ptslist = meshbuilder(trimbounds[1] : lpx : trimbounds[2], 
-                          trimbounds[3] : lpy : trimbounds[4])
-    x1 = Vector{Tuple{Float64, Float64}}(undef, size(dem    , 1))
-    x2 = Vector{Tuple{Float64, Float64}}(undef, size(ptslist, 1))
-    @inbounds for i in axes(dem, 1)
-        x1[i] = (dem[i, 1], dem[i, 2])
+    ξ0 = meshbuilder(dem_xmin : lpx : dem_xmax, dem_ymin : lpy : dem_ymax)
+    if trimbounds ≠ [0.0 0.0]
+        @info "trimming particles outside the trimbounds"
+        pts = size(ξ0, 1)
+        rst = Vector{Bool}(undef, pts) 
+        @inbounds Threads.@threads for i in 1:pts
+            px = ξ0[i, 1]
+            py = ξ0[i, 2]
+            rst[i] = particle_in_polygon(px, py, trimbounds)
+        end
+        ξ0 = ξ0[findall(rst), :]
     end
-    @inbounds for i in axes(ptslist, 1)
-        x2[i] = (ptslist[i, 1], ptslist[i, 2])
-    end
-
-    lb = [minimum(dem[:, 1]), minimum(dem[:, 2])]
-    ub = [maximum(dem[:, 1]), maximum(dem[:, 2])]
-    rbf_model = RadialBasis(x1, dem[:, 3], lb, ub, rad=cubicRadial())
-    ptslist = hcat(ptslist, zeros(Float64, size(ptslist, 1)))
-    rbf_compute!(ptslist, x2, rbf_model)
-
-    if dembounds ≠ [0 0]
-        vid = findall(i -> particle_in_polygon(ptslist[i, 1], ptslist[i, 2], dembounds), 
-            1:size(ptslist, 1))
-        return copy(ptslist[vid, :])
-    else
-        return ptslist
-    end
+    ptslist = hcat(ξ0, zeros(Float64, size(ξ0, 1)))
+    # create KDTree for DEM
+    tree = KDTree(dem[:, 1:2]')
+    idxs = zeros(Int64, size(ptslist, 1), k)
+    IDW!(k, p, dem, idxs, ptslist, tree)
+    return ptslist
 end
 
 """
