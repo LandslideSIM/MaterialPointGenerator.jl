@@ -33,7 +33,7 @@ pts = dem2particle(dem, lpz, bottom_surf)
 
 !!! warning
 
-    DEM2与DEM1应该在x-y平面具有完全相同的坐标。这可以通过[`surrogateDEM`](@ref)来实现。
+    DEM2与DEM1应该在x-y平面具有完全相同的坐标。这可以通过[`rasterizeDEM`](@ref)来实现。
 
 例如：
 
