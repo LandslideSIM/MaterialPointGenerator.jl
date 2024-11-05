@@ -26,7 +26,7 @@ Array of the particles, `tree` is the KDTree of the DEM.
 """
 @views function IDW!(k::Int, p::Int, dem, idxs, ptslist, tree::KDTree)
     @inbounds Threads.@threads for i in axes(ptslist, 1)
-        idxs[i, :] .= knn(tree, ptslist[i, :], k, true)[1]
+        idxs[i, :] .= knn(tree, ptslist[i, 1:2], k, true)[1]
         weighted_sum = 0.0
         weight_total = 0.0
         for j in 1:k
