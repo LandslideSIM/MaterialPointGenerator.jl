@@ -22,7 +22,7 @@ MaterialPointGenerator.gmsh_mesh3D
 ```@docs
 dem2particle
 rasterizeDEM
-MaterialPointGenerator.rbf_compute!
+MaterialPointGenerator.IDW!
 ```
 
 ## Utils
