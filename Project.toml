@@ -4,40 +4,26 @@ authors = ["ZenanH <zenan.huo@outlook.com>"]
 version = "0.1.4"
 
 [deps]
+CondaPkg = "992eb4ea-22a4-4c89-a5bb-47a3300528ab"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 Gmsh = "705231aa-382f-11e9-3f0c-b7cb4346fdeb"
-KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 NearestNeighbors = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
 PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
 Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 
 [compat]
+CondaPkg = "≥ 0.2.24"
 DelimitedFiles = "1"
 Gmsh = "0.3"
-KernelAbstractions = "0.9"
 NearestNeighbors = "0.4"
 PrecompileTools = "1.2"
+PythonCall = "≥ 0.9.23"
 Suppressor = "0.2"
 julia = "1.11"
 
-[weakdeps]
-AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
-CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
-oneAPI = "8f75cd03-7ff8-4ecb-9b8f-daf728133b1b"
-
-[extensions]
-MaterialPointGeneratorAMDGPUExt = "AMDGPU"
-MaterialPointGeneratorCUDAExt = "CUDA"
-MaterialPointGeneratorMetalExt = "Metal"
-MaterialPointGeneratoroneAPIExt = "oneAPI"
-
 [extras]
-AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
-CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
-oneAPI = "8f75cd03-7ff8-4ecb-9b8f-daf728133b1b"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 

@@ -12,26 +12,27 @@
 export meshbuilder
 
 """
-    meshbuilder(x::T, y::T) where T <: AbstractRange
+    meshbuilder(x::T, y::T; ϵ="FP64") where T <: AbstractRange
 
 Description:
 ---
 Generate structured mesh in 2D space.
 """
-function meshbuilder(x::T, y::T) where T <: AbstractRange
+function meshbuilder(x::T, y::T; ϵ::String="FP64") where T <: AbstractRange
     x_tmp = repeat(x', length(y), 1) |> vec
     y_tmp = repeat(y , 1, length(x)) |> vec
-    return hcat(x_tmp, y_tmp)
+    T1 = ϵ == "FP32" ? Float32 : Float64
+    return T1.(hcat(x_tmp, y_tmp))
 end
 
 """
-    meshbuilder(x::T, y::T, z::T) where T <: AbstractRange
+    meshbuilder(x::T, y::T, z::T; precision::String="FP64") where T <: AbstractRange
 
 Description:
 ---
 Generate structured mesh in 3D space.
 """
-function meshbuilder(x::T, y::T, z::T) where T <: AbstractRange
+function meshbuilder(x::T, y::T, z::T; ϵ::String="FP64") where T <: AbstractRange
     vx      = x |> collect
     vy      = y |> collect
     vz      = z |> collect
@@ -45,5 +46,6 @@ function meshbuilder(x::T, y::T, z::T) where T <: AbstractRange
     x_tmp   = vec(vx[om, :, oo])
     y_tmp   = vec(vy[:, on, oo])
     z_tmp   = vec(vz[om, on, :])
-    return hcat(x_tmp, y_tmp, z_tmp)
+    T1 = ϵ == "FP32" ? Float32 : Float64
+    return T1.(hcat(x_tmp, y_tmp, z_tmp))
 end
