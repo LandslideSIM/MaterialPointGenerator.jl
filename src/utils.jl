@@ -22,16 +22,16 @@ export readxyz
 export sortbycol
 
 """
-    fastvtp(coords; vtppath="output", data::T=NamedTuple())
+    fastvtp(coords; vtp_file="output.vtp", data::T=NamedTuple())
 
 Description:
 ---
 Generates a `.vtp` file by passing custom fields.
 """
-function fastvtp(coords; vtppath="output", data::T=NamedTuple()) where T <: NamedTuple
+function fastvtp(coords; vtp_file="output.vtp", data::T=NamedTuple()) where T <: NamedTuple
     pts_num = size(coords, 1)
     vtp_cls = [MeshCell(PolyData.Verts(), [i]) for i in 1:pts_num]
-    vtk_grid(vtppath, coords', vtp_cls, ascii=false) do vtk
+    vtk_grid(vtp_file, coords', vtp_cls, ascii=false) do vtk
         keys(data) ≠ () && for vtp_key in keys(data)
             vtk[string(vtp_key)] = getfield(data, vtp_key)
         end
@@ -75,7 +75,7 @@ Save the points `pts` to the xyz file `file_dir`.
 function savexyz(file_dir::P, pts::T) where {P <: String, T <: Array{Float64, 2}}
     size(pts, 2) == 3 || throw(ArgumentError("The input points should have 3 columns."))
     open(file_dir, "w") do io
-        writedlm(io, pts, '\t')
+        writedlm(io, pts, ' ')
     end
 end
 
@@ -87,7 +87,7 @@ Description:
 Read the xyz file from `file_dir`.
 """
 function readxyz(file_dir::P) where P <: String
-    xyz = readdlm(file_dir, '\t', Float64)
+    xyz = readdlm(file_dir, ' ', Float64)
     size(xyz, 2) == 3 || throw(ArgumentError("The input file should have 3 columns."))
     return xyz
 end

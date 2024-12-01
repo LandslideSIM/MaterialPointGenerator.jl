@@ -48,54 +48,44 @@ function readmsh(msh_path; precision="FP32")
 end
 
 """
-    polyhedron2particle(stl_file::String, lp; verbose::Bool=false, ϵ::String="FP64")
+    polyhedron2particle(stl_file::String, output_file, lp; verbose::Bool=false)
 
 Description:
 ---
-Convert a polyhedron (`.stl`) to a set of particles. The function will return the populated 
-particles in each voxel. The voxel size is defined by `lp`, it is suggest to be equal to the 
-grid size. The `verbose` is a flag to show the time consumption of each step. The `ϵ` is the 
-precision of the output data, which can be "FP64" or "FP32" in `String`.
+Convert a polyhedron (`.stl`) to a set of particles. The function will write the populated 
+particles of each voxel into a `.xyz` file. The voxel size is defined by `lp`, it is suggest
+to be equal to the MPM background grid size. The `verbose` is a flag to show the time 
+consumption of each step.
 
 Example:
 ---
 ```julia
-pts = polyhedron2particle("/path/to/yout/model.stl", 0.1, verbose=true, ϵ="FP64")
+polyhedron2particle("/path/to/yout/model.stl", "/path/to/model.xyz", 0.1, verbose=true)
 ```
 """
-function polyhedron2particle(stl_file, lp; verbose::Bool=false, ϵ="FP64")
-    T1 = ϵ == "FP64" ?   Int64 :   Int32
-    T2 = ϵ == "FP64" ? Float64 : Float32
+function polyhedron2particle(stl_file::String, output_file::String, lp; verbose::Bool=false)
     pts_center, tp = trimesh_voxelize(stl_file, lp)
-    pts = zeros(T2, length(pts_center) * 8, 3)
-    offset = lp * T2(0.25)
-    @inbounds for i in axes(pts_center, 1)
-        j = (i - 1) * 8 + 1
-        pcx, pcy, pcz = pts_center[i][1], pts_center[i][2], pts_center[i][3]
-        n_pcxoffset = pcx - offset; p_pcxoffset = pcx + offset
-        n_pcyoffset = pcy - offset; p_pcyoffset = pcy + offset
-        n_pczoffset = pcz - offset; p_pczoffset = pcz + offset
-        pts[j  , 1] = n_pcxoffset; pts[j  , 2] = p_pcyoffset; pts[j  , 3] = p_pczoffset
-        pts[j+1, 1] = n_pcxoffset; pts[j+1, 2] = n_pcyoffset; pts[j+1, 3] = p_pczoffset
-        pts[j+2, 1] = p_pcxoffset; pts[j+2, 2] = p_pcyoffset; pts[j+2, 3] = p_pczoffset
-        pts[j+3, 1] = p_pcxoffset; pts[j+3, 2] = n_pcyoffset; pts[j+3, 3] = p_pczoffset
-        pts[j+4, 1] = n_pcxoffset; pts[j+4, 2] = p_pcyoffset; pts[j+4, 3] = n_pczoffset
-        pts[j+5, 1] = n_pcxoffset; pts[j+5, 2] = n_pcyoffset; pts[j+5, 3] = n_pczoffset
-        pts[j+6, 1] = p_pcxoffset; pts[j+6, 2] = p_pcyoffset; pts[j+6, 3] = n_pczoffset
-        pts[j+7, 1] = p_pcxoffset; pts[j+7, 2] = n_pcyoffset; pts[j+7, 3] = n_pczoffset
-    end
+    offset = lp * 0.25
+    offsets = np[].array([[-offset,  offset,  offset], [-offset, -offset,  offset],
+                          [ offset,  offset,  offset], [ offset, -offset,  offset],
+                          [-offset,  offset, -offset], [-offset, -offset, -offset],
+                          [ offset,  offset, -offset], [ offset, -offset, -offset]])
+    pts = np[].vstack([np[].add(pts_center, offset) for offset in offsets])
+    t4_start = time()
+    np[].savetxt(output_file, pts, fmt="%.6f", delimiter=" ")
+    t4_end = time(); t4 = t4_end - t4_start
     if verbose
-        tt = sum(tp)
+        tt = sum(tp) + t4
         @info """voxelization with trimesh
         - load model  : $(@sprintf("%6.2f", tp[1])) s | $(@sprintf("%6.2f", 100*tp[1]/tt))%
         - voxelize    : $(@sprintf("%6.2f", tp[2])) s | $(@sprintf("%6.2f", 100*tp[2]/tt))%
         - fill voxels : $(@sprintf("%6.2f", tp[3])) s | $(@sprintf("%6.2f", 100*tp[3]/tt))%
-        - convert data: $(@sprintf("%6.2f", tp[4])) s | $(@sprintf("%6.2f", 100*tp[4]/tt))%
+        - write .xyz  : $(@sprintf("%6.2f", t4)) s | $(@sprintf("%6.2f", 100*t4/tt))%
         $("-"^34)
         - total time  : $(@sprintf("%6.2f", sum(tp))) s
         """
     end
-    return pts
+    return nothing
 end
 
 """
@@ -112,13 +102,11 @@ function trimesh_voxelize(stl_file::String, lp)
     t2_start = time(); voxelized = voxelize(mesh, lp); t2_end = time()
     @info "voxelized with trimesh"
     t3_start = time(); voxelized_filled = voxelized.fill(); t3_end = time()
-    @info "voxelized inside filled"
-    t4_start = time()
     points = voxelized_filled.points
-    pts_center = pyconvert(Vector{Vector{Float32}}, points)
-    t4_end = time()
-    @info "voxelized points converted"
-    t1 = t1_end - t1_start; t2 = t2_end - t2_start
-    t3 = t3_end - t3_start; t4 = t4_end - t4_start
-    return pts_center, [t1, t2, t3, t4]
+    pts_num = pyconvert(Int, points.shape[0])
+    @info "filled with $(pts_num * 8) particles"
+    t1 = t1_end - t1_start
+    t2 = t2_end - t2_start
+    t3 = t3_end - t3_start
+    return points, [t1, t2, t3]
 end

@@ -12,15 +12,18 @@
 module MaterialPointGenerator
 
 using DelimitedFiles, CondaPkg, Gmsh, NearestNeighbors, PrecompileTools, Printf, PythonCall, 
-      Suppressor
+      Suppressor, WriteVTK
       
 import Suppressor.@suppress as @MPGsuppress
 export @MPGsuppress
 
 const trimesh     = Ref{Py}()
 const voxelize_fn = Ref{Py}()
+const np          = Ref{Py}()
+
 function __init__()
     trimesh[] = pyimport("trimesh")
+    np[]      = pyimport("numpy")
     voxelize_fn[] = @pyconst(trimesh[].voxel.creation.voxelize)
 end
 

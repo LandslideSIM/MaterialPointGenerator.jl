@@ -12,6 +12,7 @@ PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
 Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
+WriteVTK = "64499a7a-5c06-52f2-abe2-ccb03c286192"
 
 [compat]
 CondaPkg = "≥ 0.2.24"
@@ -21,6 +22,7 @@ NearestNeighbors = "0.4"
 PrecompileTools = "1.2"
 PythonCall = "≥ 0.9.23"
 Suppressor = "0.2"
+WriteVTK = "1.21"
 julia = "1.11"
 
 [extras]
