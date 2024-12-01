@@ -14,8 +14,8 @@ polygon2particle
 ## Polyhedron
 ```@docs
 polyhedron2particle
-MaterialPointGenerator.particle_in_polyhedron!
-MaterialPointGenerator.gmsh_mesh3D
+MaterialPointGenerator.readmsh
+MaterialPointGenerator.trimesh_voxelize
 ```
 
 ## DEM
