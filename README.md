@@ -31,7 +31,7 @@ julia> ]
 
 | 3D phoenix and dragon |  DEM with thickness | complex 2D |
 |:--------:|:--------:|:--------:|
-| <img src="docs/src/assets/showcase/phoenix_dragon.png" width="200"> | ![Image2](https://via.placeholder.com/100) | ![Image3](https://via.placeholder.com/100) |
+| <img src="docs/src/assets/showcase/phoenix_dragon.png" width="200"> | ![Image2](https://via.placeholder.com/100) | <img src="docs/src/assets/showcase/octopus.png" width="200"> |
 
 
 ## Acknowledgement 👍
