@@ -77,3 +77,53 @@ structured particles in a rectangle area.
     end
     return copy(mesh[findall(rst), :])
 end
+
+function polygon2particle(stl_file::String, output_file::String, lp; verbose::Bool=true)
+    pts, tp = trimesh_voxelize2D(stl_file, lp)
+    t4 = @elapsed np[].savetxt(output_file, pts, fmt="%.6f", delimiter=" ")
+    if verbose
+        t1, t2, t3 = tp[1], tp[2], tp[3]
+        tt = sum(tp) + t4
+        @info """voxelization with trimesh
+        - load model  : $(@sprintf("%6.2f", t1)) s | $(@sprintf("%6.2f", 100*t1/tt))%
+        - voxelize    : $(@sprintf("%6.2f", t2)) s | $(@sprintf("%6.2f", 100*t2/tt))%
+        - fill voxels : $(@sprintf("%6.2f", t3)) s | $(@sprintf("%6.2f", 100*t3/tt))%
+        - write .xy   : $(@sprintf("%6.2f", t4)) s | $(@sprintf("%6.2f", 100*t4/tt))%
+        $("-"^34)
+        - total time  : $(@sprintf("%6.2f", tt)) s
+        """
+    end
+    return nothing
+end
+
+function trimesh_voxelize2D(stl_file::String, lp)
+    lp > 0 || throw(ArgumentError("lp must be positive"))
+    
+    t1 = @elapsed begin
+        mesh = trimesh[].load(stl_file, process=true)
+        z_values = mesh.vertices[pyslice(0, nothing), 2]
+        has_non_zero_z = np[].any(z_values != 0)
+        if pyconvert(Bool, pybuiltins.bool(has_non_zero_z)) 
+            error("STL model must be in 2D space, but found non-zero Z values")
+        end
+        @info "STL model loaded"
+    end
+
+    t2 = @elapsed begin
+        voxelized = voxelize(mesh, lp)
+        offset = lp * 0.25
+        voxelized_filled = voxelized.fill()
+        points = voxelized_filled.points
+        pts_center = points[pyslice(0, nothing), pyslice(0, 2)]
+        @info "voxelized with trimesh"
+    end
+
+    t3 = @elapsed begin
+        offsets = np[].array([[-offset,  offset], [ offset,  offset],
+                              [-offset, -offset], [ offset, -offset]])
+        pts = np[].vstack([pts_center + offset for offset in offsets])
+        pts_num = pyconvert(Int, pts.shape[0])
+        @info "filled with $(pts_num) particles"
+    end
+    return pts, [t1, t2, t3]
+end

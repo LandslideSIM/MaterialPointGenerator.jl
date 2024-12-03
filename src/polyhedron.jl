@@ -64,49 +64,54 @@ polyhedron2particle("/path/to/yout/model.stl", "/path/to/model.xyz", 0.1, verbos
 ```
 """
 function polyhedron2particle(stl_file::String, output_file::String, lp; verbose::Bool=false)
-    pts_center, tp = trimesh_voxelize(stl_file, lp)
-    offset = lp * 0.25
-    offsets = np[].array([[-offset,  offset,  offset], [-offset, -offset,  offset],
-                          [ offset,  offset,  offset], [ offset, -offset,  offset],
-                          [-offset,  offset, -offset], [-offset, -offset, -offset],
-                          [ offset,  offset, -offset], [ offset, -offset, -offset]])
-    pts = np[].vstack([np[].add(pts_center, offset) for offset in offsets])
-    t4_start = time()
-    np[].savetxt(output_file, pts, fmt="%.6f", delimiter=" ")
-    t4_end = time(); t4 = t4_end - t4_start
+    pts, tp = trimesh_voxelize3D(stl_file, lp)
+    t4 = @elapsed np[].savetxt(output_file, pts, fmt="%.6f", delimiter=" ")
     if verbose
+        t1, t2, t3 = tp[1], tp[2], tp[3]
         tt = sum(tp) + t4
         @info """voxelization with trimesh
-        - load model  : $(@sprintf("%6.2f", tp[1])) s | $(@sprintf("%6.2f", 100*tp[1]/tt))%
-        - voxelize    : $(@sprintf("%6.2f", tp[2])) s | $(@sprintf("%6.2f", 100*tp[2]/tt))%
-        - fill voxels : $(@sprintf("%6.2f", tp[3])) s | $(@sprintf("%6.2f", 100*tp[3]/tt))%
+        - load model  : $(@sprintf("%6.2f", t1)) s | $(@sprintf("%6.2f", 100*t1/tt))%
+        - voxelize    : $(@sprintf("%6.2f", t2)) s | $(@sprintf("%6.2f", 100*t2/tt))%
+        - fill voxels : $(@sprintf("%6.2f", t3)) s | $(@sprintf("%6.2f", 100*t3/tt))%
         - write .xyz  : $(@sprintf("%6.2f", t4)) s | $(@sprintf("%6.2f", 100*t4/tt))%
         $("-"^34)
-        - total time  : $(@sprintf("%6.2f", sum(tp))) s
+        - total time  : $(@sprintf("%6.2f", tt)) s
         """
     end
     return nothing
 end
 
 """
-    trimesh_voxelize(stl_file::String, lp)
+    trimesh_voxelize3D(stl_file::String, lp)
 
 Description:
 ---
 Voxelize the given STL model with the trimesh package. The voxel size is defined by `lp`.
 """
-function trimesh_voxelize(stl_file::String, lp)
+function trimesh_voxelize3D(stl_file::String, lp)
     lp > 0 || throw(ArgumentError("lp must be positive"))
-    t1_start = time(); mesh = trimesh[].load(stl_file, process=true); t1_end = time()
-    @info "STL model loaded"
-    t2_start = time(); voxelized = voxelize(mesh, lp); t2_end = time()
-    @info "voxelized with trimesh"
-    t3_start = time(); voxelized_filled = voxelized.fill(); t3_end = time()
-    points = voxelized_filled.points
-    pts_num = pyconvert(Int, points.shape[0])
-    @info "filled with $(pts_num * 8) particles"
-    t1 = t1_end - t1_start
-    t2 = t2_end - t2_start
-    t3 = t3_end - t3_start
-    return points, [t1, t2, t3]
+    
+    t1 = @elapsed begin
+        mesh = trimesh[].load(stl_file, process=true)
+        @info "STL model loaded"
+    end
+
+    t2 = @elapsed begin
+        voxelized = voxelize(mesh, lp)
+        offset = lp * 0.25
+        voxelized_filled = voxelized.fill()
+        pts_center = voxelized_filled.points
+        @info "voxelized with trimesh"
+    end
+
+    t3 = @elapsed begin
+        offsets = np[].array([[-offset,  offset,  offset], [-offset, -offset,  offset],
+                              [ offset,  offset,  offset], [ offset, -offset,  offset],
+                              [-offset,  offset, -offset], [-offset, -offset, -offset],
+                              [ offset,  offset, -offset], [ offset, -offset, -offset]])
+        pts = np[].vstack([np[].add(pts_center, offset) for offset in offsets])
+        pts_num = pyconvert(Int, pts.shape[0])
+        @info "filled with $(pts_num) particles"
+    end
+    return pts, [t1, t2, t3]
 end

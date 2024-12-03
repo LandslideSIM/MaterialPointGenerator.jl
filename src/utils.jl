@@ -17,9 +17,12 @@
 export fastvtp
 export savedata
 export readdata
+export savexy
 export savexyz
+export readxy
 export readxyz
 export sortbycol
+export sortbycol!
 
 """
     fastvtp(coords; vtp_file="output.vtp", data::T=NamedTuple())
@@ -66,13 +69,27 @@ function readdata(file_dir::String)
 end
 
 """
-    savexyz(file_dir::P, pts::T) where {P <: String, T <: Array{Float64, 2}}
+    savexy(file_dir::P, pts::T) where {P <: String, T <: AbstractMatrix}
 
 Description:
 ---
-Save the points `pts` to the xyz file `file_dir`.
+Save the 2D points `pts` to the `.xy` file (`file_dir`).
 """
-function savexyz(file_dir::P, pts::T) where {P <: String, T <: Array{Float64, 2}}
+function savexy(file_dir::P, pts::T) where {P <: String, T <: AbstractMatrix}
+    size(pts, 2) == 2 || throw(ArgumentError("The input points should have 2 columns."))
+    open(file_dir, "w") do io
+        writedlm(io, pts, ' ')
+    end
+end
+
+"""
+    savexyz(file_dir::P, pts::T) where {P <: String, T <: AbstractMatrix}
+
+Description:
+---
+Save the 3D points `pts` to the `.xyz` file (`file_dir`).
+"""
+function savexyz(file_dir::P, pts::T) where {P <: String, T <: AbstractMatrix}
     size(pts, 2) == 3 || throw(ArgumentError("The input points should have 3 columns."))
     open(file_dir, "w") do io
         writedlm(io, pts, ' ')
@@ -80,11 +97,24 @@ function savexyz(file_dir::P, pts::T) where {P <: String, T <: Array{Float64, 2}
 end
 
 """
+    readxy(file_dir::P) where P <: String
+
+Description:
+---
+Read the 2D `.xy` file from `file_dir`.
+"""
+function readxy(file_dir::P) where P <: String
+    xyz = readdlm(file_dir, ' ', Float64)
+    size(xyz, 2) == 2 || throw(ArgumentError("The input file should have 2 columns."))
+    return xyz
+end
+
+"""
     readxyz(file_dir::P) where P <: String
 
 Description:
 ---
-Read the xyz file from `file_dir`.
+Read the 3D `.xyz` file from `file_dir`.
 """
 function readxyz(file_dir::P) where P <: String
     xyz = readdlm(file_dir, ' ', Float64)
@@ -101,4 +131,9 @@ Sort the points in `pts` according to the column `col`.
 """
 function sortbycol(pts, col::T) where T <: Int
     return pts[sortperm(pts[:, col]), :]
+end
+
+function sortbycol!(pts, col::T) where T <: Int
+    tmp = @views pts[sortperm(pts[:, col]), :]
+    pts .= tmp
 end

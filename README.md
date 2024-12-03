@@ -4,7 +4,10 @@
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg?logo=quicklook)](https://LandslideSIM.github.io/MaterialPointGenerator.jl/stable)
 [![Version](https://img.shields.io/badge/version-v0.1.5-pink)]()
 
-This package is used for generating structured particles for Material Point Method (MPM) simulation. To do it, we are relying on [trimesh](https://trimesh.org/) (python) by using [PythonCall.jl](https://github.com/JuliaPy/PythonCall.jl). Don't worry, we will handle the env automatically. If you want to use your own Python env, please make sure [CondaPkg.jl](https://github.com/JuliaPy/CondaPkg.jl) can find your env and install the packages in the `CondaPkg.toml`. Please follow the [documentation](https://LandslideSIM.github.io/MaterialPointGenerator.jl/stable) step-by-step to reproduce the results.
+During the EGU2023 conference, when I presented a high-performance MPM solver, I was asked, 
+"How do you discretize the computational model for the MPM?" I didn't have a clear answer (I didn't even consider it a problem) because the models were relatively simple and could be generated directly using some straightforward functions. However, as computational models gradually became more complex and diverse, I began to realize that this was indeed a very good question. The preprocessing for MPM should not be a computationally intensive task; it should be fast enough. Yet, I couldn't find a "plug-and-play" generalized code for this purpose. Some literatures have contributed to this issue, and I built upon their work to create a comprehensive and refined julia package. 
+
+> No parallelization, no problem—40,392,872 particles from an STL file in just 9.18s. [Intel(R) Core(TM) i9-10900K CPU @ 3.70GHz]
 
 ---
 
