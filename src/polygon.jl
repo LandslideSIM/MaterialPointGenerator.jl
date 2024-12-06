@@ -78,8 +78,8 @@ structured particles in a rectangle area.
     return copy(mesh[findall(rst), :])
 end
 
-function polygon2particle(stl_file::String, output_file::String, lp; verbose::Bool=true)
-    pts, tp = trimesh_voxelize2D(stl_file, lp)
+function polygon2particle(stl_file::String, output_file::String, h; verbose::Bool=true)
+    pts, tp = trimesh_voxelize2D(stl_file, h)
     t4 = @elapsed np[].savetxt(output_file, pts, fmt="%.6f", delimiter=" ")
     if verbose
         t1, t2, t3 = tp[1], tp[2], tp[3]
@@ -96,8 +96,105 @@ function polygon2particle(stl_file::String, output_file::String, lp; verbose::Bo
     return nothing
 end
 
-function trimesh_voxelize2D(stl_file::String, lp)
-    lp > 0 || throw(ArgumentError("lp must be positive"))
+function polygon2particle(
+    stl_file   ::String, 
+    msh_file   ::String, 
+    output_file::String,
+    nid_file   ::String,
+    h; 
+    verbose    ::Bool=true
+)
+    pts, nid, tp = trimesh_voxelize2D(stl_file, msh_file, h)
+    t4 = @elapsed begin 
+        np[].savetxt(output_file, pts, fmt="%.6f", delimiter=" ")
+        np[].savetxt(nid_file, nid, fmt="%s", delimiter="\n")
+    end
+    if verbose
+        t1, t2, t3 = tp[1], tp[2], tp[3]
+        tt = sum(tp) + t4
+        @info """voxelization with trimesh (Gmsh Physical Group)
+        - load model    : $(@sprintf("%6.2f", t1)) s | $(@sprintf("%6.2f", 100*t1/tt))%
+        - voxelize      : $(@sprintf("%6.2f", t2)) s | $(@sprintf("%6.2f", 100*t2/tt))%
+        - fill voxels   : $(@sprintf("%6.2f", t3)) s | $(@sprintf("%6.2f", 100*t3/tt))%
+        - write .xy .nid: $(@sprintf("%6.2f", t4)) s | $(@sprintf("%6.2f", 100*t4/tt))%
+        $("-"^36)
+        - total time    : $(@sprintf("%6.2f", tt)) s
+        """
+    end
+    return nothing
+end
+
+function trimesh_voxelize2D(stl_file::String, msh_file::String, h)
+    h > 0 || throw(ArgumentError("h must be positive"))
+
+    t1 = @elapsed begin
+        mesh = trimesh[].load(stl_file, process=true)
+        meshio_mesh = meshio[].read(msh_file)
+        physical_group_map = pybuiltins.dict()
+        for (name, data) in meshio_mesh.field_data.items() # extract physical group ID & Name
+            physical_group_map[np[].int64(data[0])] = name # physical Group ID -> Group Name
+        end
+        triangle_faces = pybuiltins.list()
+        triangle_physical_ids = pybuiltins.list()
+        for (cell_type, cell_data) in zip(meshio_mesh.cells, meshio_mesh.cell_data["gmsh:physical"])
+            if pyconvert(String, cell_type.type) == "triangle"
+                triangle_faces.extend(cell_type.data)
+                triangle_physical_ids.extend(cell_data)
+            end
+        end
+        triangle_faces = np[].array(triangle_faces)
+        triangle_physical_ids = np[].array(triangle_physical_ids)
+        # check .msh == .stl 
+        if length(mesh.vertices) ≠ length(meshio_mesh.points) || 
+           length(mesh.faces)    ≠ length(triangle_faces)
+            error("mismatch between .stl and .msh file geometries")
+        end
+        z_values = mesh.vertices[pyslice(0, nothing), 2]
+        has_non_zero_z = np[].any(z_values != 0)
+        if pyconvert(Bool, pybuiltins.bool(has_non_zero_z)) 
+            error("STL model must be in 2D space, but found non-zero Z values")
+        end
+        @info "STL model and Physical group loaded"
+    end
+
+    t2 = @elapsed begin
+        voxelized = voxelize(mesh, h)
+        offset = h * 0.25
+        voxelized_filled = voxelized.fill()
+        points = voxelized_filled.points
+        tmp1, tmp2, triangle_ids = mesh.nearest.on_surface(points)
+        voxel_to_group = np[].full(length(points), pybuiltins.None, dtype=pybuiltins.object)
+        for (i, triangle_id) in enumerate(triangle_ids)
+            if pyconvert(Int, triangle_id) ≥ 0  # 检查 triangle_id 是否有效
+                physical_id = triangle_physical_ids[triangle_id]  # 获取对应的 Physical ID
+                voxel_to_group[i-1] = physical_group_map.get(physical_id, pybuiltins.None)  # 映射到 Physical Group Name
+            end
+        end
+        nid = np[].repeat(voxel_to_group, 4)
+        pts_center = points[pyslice(0, nothing), pyslice(0, 2)]
+        @info "voxelized with trimesh"
+    end
+
+    t3 = @elapsed begin
+        offsets = np[].array([[-offset,  offset], [ offset,  offset],
+                              [-offset, -offset], [ offset, -offset]])
+        # pts = np[].vstack([pts_center + offset for offset in offsets])
+        pts = np[].empty((4 * length(pts_center), 2))  # 初始化新数组，大小为原数组的4倍
+        for (i, (x, y)) in enumerate(pts_center)
+            idx = (i - 1) * 4
+            pts[idx+0][0], pts[idx+0][1] = x - offset, y + offset
+            pts[idx+1][0], pts[idx+1][1] = x + offset, y + offset
+            pts[idx+2][0], pts[idx+2][1] = x - offset, y - offset
+            pts[idx+3][0], pts[idx+3][1] = x + offset, y - offset
+        end    
+        pts_num = pyconvert(Int, pts.shape[0])
+        @info "filled with $(pts_num) particles"
+    end
+    return pts, nid, [t1, t2, t3]
+end
+
+function trimesh_voxelize2D(stl_file::String, h)
+    h > 0 || throw(ArgumentError("h must be positive"))
     
     t1 = @elapsed begin
         mesh = trimesh[].load(stl_file, process=true)
@@ -110,8 +207,8 @@ function trimesh_voxelize2D(stl_file::String, lp)
     end
 
     t2 = @elapsed begin
-        voxelized = voxelize(mesh, lp)
-        offset = lp * 0.25
+        voxelized = voxelize(mesh, h)
+        offset = h * 0.25
         voxelized_filled = voxelized.fill()
         points = voxelized_filled.points
         pts_center = points[pyslice(0, nothing), pyslice(0, 2)]

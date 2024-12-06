@@ -12,6 +12,8 @@
 |               04. savexyz                                                                |
 |               05. readxyz                                                                |
 |               06. sortbycol                                                              |
+|               07. sortbycol!                                                             |
+|               08. csv2geo2d                                                              |
 +==========================================================================================#
 
 export fastvtp
@@ -23,6 +25,7 @@ export readxy
 export readxyz
 export sortbycol
 export sortbycol!
+export csv2geo2d
 
 """
     fastvtp(coords; vtp_file="output.vtp", data::T=NamedTuple())
@@ -136,4 +139,29 @@ end
 function sortbycol!(pts, col::T) where T <: Int
     tmp = @views pts[sortperm(pts[:, col]), :]
     pts .= tmp
+end
+
+"""
+    csv2geo2d(csv_file::String, geo_file::String)
+
+Description:
+---
+Convert the CSV file (.csv) to the Gmsh geo (.geo) file.
+"""
+function csv2geo2d(csv_file::String, geo_file::String)
+    if csv_file[end-3 : end] ≠ ".csv" || geo_file[end-3 : end] == ".geo"
+        st1 = "The input file should be a CSV file (.csv)"
+        st2 = "The output file should be a Gmsh geo file (.geo)"
+        throw(ArgumentError(st1 * "\n" * st2))
+    end
+    data = readdlm(csv_file, ',')
+    open(geo_file, "w") do file
+        write(file, "lc = 1.0;\n\n")
+        for (id, row) in enumerate(eachrow(data))
+            x, y = row
+            write(file, "Point($id) = {$x, $y, 0, lc};\n")
+        end
+    end
+    @info ".geo saved at $geo_file"
+    return nothing
 end

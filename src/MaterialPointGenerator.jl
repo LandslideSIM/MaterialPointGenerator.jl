@@ -20,10 +20,14 @@ export @MPGsuppress
 const trimesh     = Ref{Py}()
 const voxelize_fn = Ref{Py}()
 const np          = Ref{Py}()
+const meshio      = Ref{Py}()
+const embreex     = Ref{Py}()
 
 function __init__()
     trimesh[] = pyimport("trimesh")
     np[]      = pyimport("numpy")
+    meshio[]  = pyimport("meshio")
+    embreex[]  = pyimport("embreex")
     voxelize_fn[] = @pyconst(trimesh[].voxel.creation.voxelize)
 end
 
