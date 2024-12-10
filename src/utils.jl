@@ -7,18 +7,15 @@
 |  Start Date : 01/01/2022                                                                 |
 |  Affiliation: Risk Group, UNIL-ISTE                                                      |
 |  Functions  : 01. fastvtp                                                                |
-|               02. savedata                                                               |
-|               03. readdata                                                               |
-|               04. savexyz                                                                |
-|               05. readxyz                                                                |
-|               06. sortbycol                                                              |
-|               07. sortbycol!                                                             |
-|               08. csv2geo2d                                                              |
+|               02. savexyz                                                                |
+|               03. readxyz                                                                |
+|               04. sortbycol                                                              |
+|               05. sortbycol!                                                             |
+|               06. csv2geo2d                                                              |
+|               07. sort_pts                                                               |
 +==========================================================================================#
 
 export fastvtp
-export savedata
-export readdata
 export savexy
 export savexyz
 export readxy
@@ -26,6 +23,8 @@ export readxyz
 export sortbycol
 export sortbycol!
 export csv2geo2d
+export sort_pts
+export populate_pts
 
 """
     fastvtp(coords; vtp_file="output.vtp", data::T=NamedTuple())
@@ -164,4 +163,57 @@ function csv2geo2d(csv_file::String, geo_file::String)
     end
     @info ".geo saved at $geo_file"
     return nothing
+end
+
+"""
+    sort_pts(pts::Matrix)
+
+Description:
+---
+Sort the points in pts by the (z-), y-, and x-coordinates, in that order (2/3D).
+"""
+function sort_pts(pts::Matrix)
+    if size(pts, 2) == 2
+        idx = sortperm(eachrow(pts), by=row -> (row[2], row[1]))
+    elseif size(pts, 2) == 3
+        idx = sortperm(eachrow(pts), by=row -> (row[3], row[2], row[1]))
+    else
+        throw(ArgumentError("The input points should have 2 or 3 columns (2/3D)"))
+    end
+    return pts[idx, :]
+end
+
+"""
+    populate_pts(pts_cen, h)
+
+Description:
+---
+Populate the points around the center points `pts_cen` with the spacing `h/4` (2/3D).
+"""
+@views function populate_pts(pts_cen, h)
+    oft = h * 0.25
+    N, D = size(pts_cen)
+    if D == 3
+        offsets = [-oft oft oft; -oft oft  -oft; -oft -oft oft; -oft -oft -oft;
+                    oft oft oft;  oft oft  -oft;  oft -oft oft;  oft -oft -oft]
+        pts = Matrix{Float64}(undef, 8*N, D)
+        @inbounds for i in axes(pts_cen, 1)
+            start_idx = (i - 1) * 8 + 1
+            for j in 1:8
+                pts[start_idx + j - 1, :] .= pts_cen[i, :] .+ offsets[j, :]
+            end
+        end
+    elseif D == 2
+        offsets = [-oft oft; -oft -oft; oft oft; oft -oft]
+        pts = Matrix{Float64}(undef, 4*N, D)
+        @inbounds for i in axes(pts_cen, 1)
+            start_idx = (i - 1) * 4 + 1
+            for j in 1:4
+                pts[start_idx + j - 1, :] .= pts_cen[i, :] .+ offsets[j, :]
+            end
+        end
+    else
+        throw(ArgumentError("The input points should have 2 or 3 columns (2/3D)"))
+    end
+    return pts
 end

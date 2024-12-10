@@ -31,8 +31,11 @@ julia> ]
 
 | 3D phoenix and dragon |  DEM with thickness | complex 2D |
 |:--------:|:--------:|:--------:|
-| <img src="docs/src/assets/showcase/phoenix_dragon.png" width="200"> | ![Image2](https://via.placeholder.com/100) | <img src="docs/src/assets/showcase/octopus.png" width="200"> |
+| <img src="docs/src/assets/showcase/phoenix_dragon.png" width="200"> | <img src="https://via.placeholder.com/100" width="200"> | <img src="docs/src/assets/showcase/octopus.png" width="200"> |
 
+| 2D landslide profile with geological structure (`nid`) |
+|:--------:|
+| <img src="docs/src/assets/showcase/landslide.png" width="600"> |
 
 ## Acknowledgement 👍
 
