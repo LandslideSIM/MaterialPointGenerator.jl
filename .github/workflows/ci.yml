@@ -18,13 +18,12 @@ jobs:
       matrix:
         version:
           - "1"   # Latest Release
-        include:
-          - os: ubuntu-latest
-            arch: x64
-          - os: macos-latest-xlarge
-            arch: arm64
-          - os: windows-latest
-            arch: x64
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+        arch:
+          - x64
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
