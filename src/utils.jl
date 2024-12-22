@@ -7,19 +7,24 @@
 |  Start Date : 01/01/2022                                                                 |
 |  Affiliation: Risk Group, UNIL-ISTE                                                      |
 |  Functions  : 01. fastvtp                                                                |
-|               02. savedata                                                               |
-|               03. readdata                                                               |
-|               04. savexyz                                                                |
-|               05. readxyz                                                                |
-|               06. sortbycol                                                              |
+|               02. savexyz                                                                |
+|               03. readxyz                                                                |
+|               04. sortbycol                                                              |
+|               05. sortbycol!                                                             |
+|               06. csv2geo2d                                                              |
+|               07. sort_pts                                                               |
 +==========================================================================================#
 
 export fastvtp
-export savedata
-export readdata
+export savexy
 export savexyz
+export readxy
 export readxyz
 export sortbycol
+export sortbycol!
+export csv2geo2d
+export sort_pts
+export populate_pts
 
 """
     fastvtp(coords; vtp_file="output.vtp", data::T=NamedTuple())
@@ -66,13 +71,27 @@ function readdata(file_dir::String)
 end
 
 """
-    savexyz(file_dir::P, pts::T) where {P <: String, T <: Array{Float64, 2}}
+    savexy(file_dir::P, pts::T) where {P <: String, T <: AbstractMatrix}
 
 Description:
 ---
-Save the points `pts` to the xyz file `file_dir`.
+Save the 2D points `pts` to the `.xy` file (`file_dir`).
 """
-function savexyz(file_dir::P, pts::T) where {P <: String, T <: Array{Float64, 2}}
+function savexy(file_dir::P, pts::T) where {P <: String, T <: AbstractMatrix}
+    size(pts, 2) == 2 || throw(ArgumentError("The input points should have 2 columns."))
+    open(file_dir, "w") do io
+        writedlm(io, pts, ' ')
+    end
+end
+
+"""
+    savexyz(file_dir::P, pts::T) where {P <: String, T <: AbstractMatrix}
+
+Description:
+---
+Save the 3D points `pts` to the `.xyz` file (`file_dir`).
+"""
+function savexyz(file_dir::P, pts::T) where {P <: String, T <: AbstractMatrix}
     size(pts, 2) == 3 || throw(ArgumentError("The input points should have 3 columns."))
     open(file_dir, "w") do io
         writedlm(io, pts, ' ')
@@ -80,11 +99,24 @@ function savexyz(file_dir::P, pts::T) where {P <: String, T <: Array{Float64, 2}
 end
 
 """
+    readxy(file_dir::P) where P <: String
+
+Description:
+---
+Read the 2D `.xy` file from `file_dir`.
+"""
+function readxy(file_dir::P) where P <: String
+    xyz = readdlm(file_dir, ' ', Float64)
+    size(xyz, 2) == 2 || throw(ArgumentError("The input file should have 2 columns."))
+    return xyz
+end
+
+"""
     readxyz(file_dir::P) where P <: String
 
 Description:
 ---
-Read the xyz file from `file_dir`.
+Read the 3D `.xyz` file from `file_dir`.
 """
 function readxyz(file_dir::P) where P <: String
     xyz = readdlm(file_dir, ' ', Float64)
@@ -101,4 +133,87 @@ Sort the points in `pts` according to the column `col`.
 """
 function sortbycol(pts, col::T) where T <: Int
     return pts[sortperm(pts[:, col]), :]
+end
+
+function sortbycol!(pts, col::T) where T <: Int
+    tmp = @views pts[sortperm(pts[:, col]), :]
+    pts .= tmp
+end
+
+"""
+    csv2geo2d(csv_file::String, geo_file::String)
+
+Description:
+---
+Convert the CSV file (.csv) to the Gmsh geo (.geo) file.
+"""
+function csv2geo2d(csv_file::String, geo_file::String)
+    if csv_file[end-3 : end] ≠ ".csv" || geo_file[end-3 : end] == ".geo"
+        st1 = "The input file should be a CSV file (.csv)"
+        st2 = "The output file should be a Gmsh geo file (.geo)"
+        throw(ArgumentError(st1 * "\n" * st2))
+    end
+    data = readdlm(csv_file, ',')
+    open(geo_file, "w") do file
+        write(file, "lc = 1.0;\n\n")
+        for (id, row) in enumerate(eachrow(data))
+            x, y = row
+            write(file, "Point($id) = {$x, $y, 0, lc};\n")
+        end
+    end
+    @info ".geo saved at $geo_file"
+    return nothing
+end
+
+"""
+    sort_pts(pts::Matrix)
+
+Description:
+---
+Sort the points in pts by the (z-), y-, and x-coordinates, in that order (2/3D).
+"""
+function sort_pts(pts::Matrix)
+    if size(pts, 2) == 2
+        idx = sortperm(eachrow(pts), by=row -> (row[2], row[1]))
+    elseif size(pts, 2) == 3
+        idx = sortperm(eachrow(pts), by=row -> (row[3], row[2], row[1]))
+    else
+        throw(ArgumentError("The input points should have 2 or 3 columns (2/3D)"))
+    end
+    return pts[idx, :]
+end
+
+"""
+    populate_pts(pts_cen, h)
+
+Description:
+---
+Populate the points around the center points `pts_cen` with the spacing `h/4` (2/3D).
+"""
+@views function populate_pts(pts_cen, h)
+    oft = h * 0.25
+    N, D = size(pts_cen)
+    if D == 3
+        offsets = [-oft oft oft; -oft oft  -oft; -oft -oft oft; -oft -oft -oft;
+                    oft oft oft;  oft oft  -oft;  oft -oft oft;  oft -oft -oft]
+        pts = Matrix{Float64}(undef, 8*N, D)
+        @inbounds for i in axes(pts_cen, 1)
+            start_idx = (i - 1) * 8 + 1
+            for j in 1:8
+                pts[start_idx + j - 1, :] .= pts_cen[i, :] .+ offsets[j, :]
+            end
+        end
+    elseif D == 2
+        offsets = [-oft oft; -oft -oft; oft oft; oft -oft]
+        pts = Matrix{Float64}(undef, 4*N, D)
+        @inbounds for i in axes(pts_cen, 1)
+            start_idx = (i - 1) * 4 + 1
+            for j in 1:4
+                pts[start_idx + j - 1, :] .= pts_cen[i, :] .+ offsets[j, :]
+            end
+        end
+    else
+        throw(ArgumentError("The input points should have 2 or 3 columns (2/3D)"))
+    end
+    return pts
 end

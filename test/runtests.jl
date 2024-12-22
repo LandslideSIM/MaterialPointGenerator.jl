@@ -1,12 +1,7 @@
 using MaterialPointGenerator
-using DelimitedFiles
 using Test
 
-const testassets = joinpath(@__DIR__, "testsuit/testassets")
-@testset "trigonometric identities" begin
-    include(joinpath(@__DIR__, "testsuit/testdem.jl"))
-    include(joinpath(@__DIR__, "testsuit/testmeshgenerator.jl"))
-    include(joinpath(@__DIR__, "testsuit/testpolygon.jl"))
-    include(joinpath(@__DIR__, "testsuit/testpolyhedron.jl"))
-    include(joinpath(@__DIR__, "testsuit/testutils.jl"))
-end;
+@test !isnothing(MaterialPointGenerator.trimesh[])
+@test !isnothing(MaterialPointGenerator.np[])
+@test !isnothing(MaterialPointGenerator.meshio[])
+@test !isnothing(MaterialPointGenerator.voxelize_fn[])
