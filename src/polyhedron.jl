@@ -13,7 +13,7 @@
 export polyhedron2particle
 
 """
-    polyhedron2particle(stl_file::String, output_file, lp; verbose::Bool=false)
+    polyhedron2particle(stl_file::String, output_file, h; verbose::Bool=false)
 
 Description:
 ---
