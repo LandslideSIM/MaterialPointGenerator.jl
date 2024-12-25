@@ -190,13 +190,13 @@ Description:
 ---
 Populate the points around the center points `pts_cen` with the spacing `h/4` (2/3D).
 """
-@views function populate_pts(pts_cen, h)
-    oft = h * 0.25
+@views function populate_pts(pts_cen::Matrix{T}, h::T) where T
+    oft = T(h * 0.25)
     N, D = size(pts_cen)
     if D == 3
         offsets = [-oft oft oft; -oft oft  -oft; -oft -oft oft; -oft -oft -oft;
                     oft oft oft;  oft oft  -oft;  oft -oft oft;  oft -oft -oft]
-        pts = Matrix{Float64}(undef, 8*N, D)
+        pts = Matrix{T}(undef, 8*N, D)
         @inbounds for i in axes(pts_cen, 1)
             start_idx = (i - 1) * 8 + 1
             for j in 1:8
@@ -205,7 +205,7 @@ Populate the points around the center points `pts_cen` with the spacing `h/4` (2
         end
     elseif D == 2
         offsets = [-oft oft; -oft -oft; oft oft; oft -oft]
-        pts = Matrix{Float64}(undef, 4*N, D)
+        pts = Matrix{T}(undef, 4*N, D)
         @inbounds for i in axes(pts_cen, 1)
             start_idx = (i - 1) * 4 + 1
             for j in 1:4
