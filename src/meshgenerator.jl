@@ -12,7 +12,7 @@
 export meshbuilder
 
 """
-    meshbuilder(x::T, y::T; ϵ="FP64") where T <: AbstractRange
+    meshbuilder(x::T, y::T; ϵ::String="FP64") where T <: AbstractRange
 
 Description:
 ---
@@ -26,7 +26,7 @@ function meshbuilder(x::T, y::T; ϵ::String="FP64") where T <: AbstractRange
 end
 
 """
-    meshbuilder(x::T, y::T, z::T; precision::String="FP64") where T <: AbstractRange
+    meshbuilder(x::T, y::T, z::T; ϵ::String="FP64") where T <: AbstractRange
 
 Description:
 ---

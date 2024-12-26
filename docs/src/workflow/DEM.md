@@ -6,50 +6,55 @@
     The input format for the DEM is a three-column array, where the first column represents the x-coordinate, the second column represents the corresponding y-coordinate, and the third 
     column is the z-coordinate.
 
+The Digital Elevation Model (DEM) is a special 3D case. Typically, for landslide simulations, we obtain a DEM file composed of surface data, which consists of three-dimensional scatter points, with each x-y coordinate corresponding to a unique z value. Before generating the material points, we need to perform a simple processing step by rasterizing it on the x-y plane using inverse distance weighting (IDW). We then proceed to generate the material points based on our requirements.
+
+## DEM file pre-processing
+
+The DEM file is a simple three-column array, but we need to instantiate it using the structure provided internally.
+
+```@docs
+DEMSurface(coord; ϵ="FP64")
+```
+
+Each DEM must be rasterized to ensure it is structured (regular) in the x-y plane.
+
+```@docs
+rasterizeDEM(
+    dem       ::DEMSurface{T1, T2},
+    h         ::T2; 
+    k         ::T1        = 10, 
+    p         ::T1        = 2, 
+    trimbounds::Matrix{T2}= [0.0 0.0], 
+    dembounds ::Vector{T2}= [0.0, 0.0]
+) where {T1, T2}
+```
+
+Through this function, we can rasterize the input DEM file and specify the spacing between each point (which is the same as the grid size in the MPM simulation). The `trimbounds` parameter is used to define the shape of the DEM file in the x-y plane; it is a two-dimensional array where each row represents a vertex of the shape in the x-y plane. The `dembounds` parameter can be used to specify the range of the DEM in the x-y plane; it is a vector that represents `[xmin, xmax, ymin, ymax]`. This can be utilized to process two DEMs of the same area at different times, ensuring they have completely consistent x-y coordinates.
+
 ## DEM with a flat bottom surface
 
-假设我们有了一个DEM文件，然后想以底面，例如z=0这个平面对这个DEM模型闭合，那么可以做：
+Suppose we have a DEM and we want to close it with a base plane, for example, at z=0.
 
-```julia
-pts = dem2particle(dem, lpz, bottom)
+```@docs
+dem2particle(
+    dem   ::DEMSurface{T1, T2}, 
+    h     ::T2, 
+    bottom::T2
+) where {T1, T2}
 ```
-
-其中dem是拥有三列的数组，lpz是沿z方向布置物质点时的步长，bottom是一个标量值，表示底平面z的高度。
-
-```julia
-pts = dem2particle(dem, 0.1, 0)
-savexyz(joinpath(homedir(), "tmp.xyz"), pts)
-```
-
-![Figure3](../figure/figure3.png)
 
 ## DEM with a given bottom surface
 
-如果说用来闭合DEM1的底面并不是一个平面，那么我们可以指定另一个DEM2文件作为用来闭合DEM1的底面。
+If the base used to close DEM-1 is not a flat surface, we can designate another DEM-2 to serve as the base for closing DEM-1.
 
-```julia
-pts = dem2particle(dem, lpz, bottom_surf)
+```@docs
+dem2particle(
+    dem   ::DEMSurface{T1, T2}, 
+    h     ::T2, 
+    bottom::DEMSurface{T1, T2}
+) where {T1, T2}
 ```
 
-!!! warning
+!!! info
 
-    DEM2与DEM1应该在x-y平面具有完全相同的坐标。这可以通过[`rasterizeDEM`](@ref)来实现。
-
-例如：
-
-```julia
-pts = dem2particle(dem, 0.1, bottom_surf)
-savexyz(joinpath(homedir(), "tmp.xyz"), pts)
-```
-
-![Figure4](../figure/figure4.png)
-
-## DEM interpolation
-
-这里的插值是指DEM中的点集在x-y平面上进行插值，并根据相邻点的z坐标来计算对应的z值。有些时候滑坡的DEM文件可能在x-y平面并不是
-一个矩形，因此我们可能需要对形状进行裁剪。
-
-### DEM为矩形
-
-### DEM非矩形
-
+    DEM-2 and DEM-1 should have exactly the same coordinates in the x-y plane. This can be achieved using [`rasterizeDEM`](@ref).

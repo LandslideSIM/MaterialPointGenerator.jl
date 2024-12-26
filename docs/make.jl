@@ -21,7 +21,9 @@ makedocs(
             "example/polygon.md",
             "example/polyhedron.md",
             "example/DEM.md"
-        ]
+        ],
+        "utils.md"
+
     ],
     warnonly = [:missing_docs, :cross_references],
 )
