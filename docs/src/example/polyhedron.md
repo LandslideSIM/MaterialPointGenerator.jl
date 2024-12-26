@@ -1,16 +1,23 @@
 # Polyhedron
 
-If your model is not a DEM but rather a more generalized 3D model, we recommend that you first use an STL file to create the 3D model entity. Please note that it is recommended to use MeshLab or other tools to check and ensure that the surface mesh forms a closed 3D entity. 
+!!! note
 
-With MaterialPointGenerator.jl, we can easily accomplish this task by providing the STL file, specifying the output file (`.xyz`), and setting the voxel spacing. The basic idea is to voxelize the STL model and fill it with eight material particles. Therefore, the voxel spacing `h` is recommended to match the grid spacing in MPM simulations. 
+    All example files can be found at `assets/3d_simple` [https://github.com/LandslideSIM/MaterialPointGenerator.jl](https://github.com/LandslideSIM/MaterialPointGenerator.jl).
 
-The voxelization of the STL model is handled by [trimesh](https://trimesh.org/); although we introduced a Python dependency, it is simple and efficient enough that users do not need to manually configure the Python environment. If you want to use your own Python env, please make sure [CondaPkg.jl](https://github.com/JuliaPy/CondaPkg.jl) can find your env and install the packages in the `CondaPkg.toml`.
+Here, we only need to provide the `.stl` file and specify the cell size `h`.
 
-Example:
 ```julia
-stl_file = "/path/to/your/model.stl"
-output_file = "/path/to/your/mode.xyz" # just give the path even it is not exist
-h = 2.5 # MPM grid size
-polyhedron2particle(stl_file, output_file, h, verbose=true) # verbose==true will show the time profile
-pts = readxyz(output_file)
+using MaterialPointGenerator
+
+src_dir     = joinpath(@__DIR__, "assets/3d_simple")
+stl_file    = joinpath(src_dir, "wedge.stl")
+output_file = joinpath(src_dir, "3d_simple.xyz")
+
+polyhedron2particle(stl_file, output_file, 0.5, verbose=true)
 ```
+
+![image3](./image3.png)
+
+A partially enlarged image:
+
+![image4](./image4.png)
