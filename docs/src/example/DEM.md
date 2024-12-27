@@ -20,9 +20,8 @@ We can visualize `data` and obtain:
 h = 0.2
 bottom = -1.0
 
-dem_0 = DEMSurface(data)
+dem_0 = data
 dem_1 = rasterizeDEM(dem_0, h)
-dem_1 = DEMSurface(dem_1)
 
 pts = dem2particle(dem_1, h, bottom)
 ```
@@ -34,13 +33,10 @@ pts = dem2particle(dem_1, h, bottom)
 ```julia
 h = 0.2
 
-dem_0 = DEMSurface(data)
-dem_1 = rasterizeDEM(dem_0, h)
-dem_2 = copy(dem_1)
-dem_2[:, 3] .-= 2
-
-dem_t = DEMSurface(dem_1)
-dem_b = DEMSurface(dem_2)
+dem_0 = data
+dem_t = rasterizeDEM(dem_0, h)
+dem_b = copy(dem_1)
+dem_b[:, 3] .-= 2
 
 pts = dem2particle(dem_t, h, dem_b)
 ```
