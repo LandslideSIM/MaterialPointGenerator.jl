@@ -24,7 +24,7 @@ jobs:
         arch:
           - x64
         include:
-          - os: macOS-latest
+          - os: macos-latest
             arch: aarch64
             version: 1
     steps:
