@@ -10,17 +10,11 @@ The Digital Elevation Model (DEM) is a special 3D case. Typically, for landslide
 
 ## DEM file pre-processing
 
-The DEM file is a simple three-column array, but we need to instantiate it using the structure provided internally.
-
-```@docs
-DEMSurface(coord; ϵ="FP64")
-```
-
-Each DEM must be rasterized to ensure it is structured (regular) in the x-y plane.
+The DEM file is a simple three-column array. Each DEM must be rasterized to ensure it is structured (regular) in the x-y plane.
 
 ```@docs
 rasterizeDEM(
-    dem       ::DEMSurface{T1, T2},
+    dem       ::Matrix{T2},
     h         ::T2; 
     k         ::T1        = 10, 
     p         ::T1        = 2, 
@@ -37,10 +31,10 @@ Suppose we have a DEM and we want to close it with a base plane, for example, at
 
 ```@docs
 dem2particle(
-    dem   ::DEMSurface{T1, T2}, 
+    dem   ::Matrix{T2}, 
     h     ::T2, 
     bottom::T2
-) where {T1, T2}
+) where T2
 ```
 
 ## DEM with a given bottom surface
@@ -49,10 +43,10 @@ If the base used to close DEM-1 is not a flat surface, we can designate another 
 
 ```@docs
 dem2particle(
-    dem   ::DEMSurface{T1, T2}, 
+    dem   ::Matrix{T2}, 
     h     ::T2, 
-    bottom::DEMSurface{T1, T2}
-) where {T1, T2}
+    bottom::Matrix{T2}
+) where T2
 ```
 
 !!! info
