@@ -5,4 +5,6 @@ using Test
 @test !isnothing(MaterialPointGenerator.np[])
 @test !isnothing(MaterialPointGenerator.meshio[])
 @test !isnothing(MaterialPointGenerator.voxelize_fn[])
-@test Sys.ARCH ≠ :aarch64 && !isnothing(MaterialPointGenerator.embreex[])
+if Sys.ARCH ≠ :aarch64
+    @test !isnothing(MaterialPointGenerator.embreex[])
+end
