@@ -11,14 +11,20 @@
 
 module MaterialPointGenerator
 
-using DelimitedFiles, CondaPkg, NearestNeighbors, Printf, PythonCall, WriteVTK
+using DelimitedFiles, CondaPkg, Gmsh, NearestNeighbors, Printf, PythonCall, WriteVTK
 
 const trimesh     = Ref{Py}()
 const voxelize_fn = Ref{Py}()
 const np          = Ref{Py}()
 const meshio      = Ref{Py}()
+const embreex     = Ref{Py}()
 
 function __init__()
+    @info "checking environment..."
+    if Sys.ARCH ≠ :aarch64
+        CondaPkg.add_pip("embreex")
+        embreex[] = pyimport("embreex")
+    end
     trimesh[]     = pyimport("trimesh")
     np[]          = pyimport("numpy")
     meshio[]      = pyimport("meshio")
