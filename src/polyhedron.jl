@@ -12,8 +12,19 @@
 
 export polyhedron2particle
 
+struct GmshMesh{T1, T2}
+    vertices :: Array{T2, 2}
+    faces    :: Array{T1, 2}
+    data     :: Vector{Vector{T2}}
+    bounds   :: Vector{T2}
+end
+
+rs_dir = joinpath(@__DIR__, "_polyhedron")
+include(joinpath(rs_dir, "_utils.jl"   ))
+include(joinpath(rs_dir, "_workflow.jl"))
+
 """
-    polyhedron2particle(stl_file::String, output_file, h; verbose::Bool=false)
+    polyhedron2particle(stl_file::String, output_file, h; verbose::Bool=false, )
 
 Description:
 ---
@@ -31,21 +42,53 @@ h = 0.1
 polyhedron2particle(stl_file, output_file, h, verbose=true)
 ```
 """
-function polyhedron2particle(stl_file::String, output_file::String, h; verbose::Bool=false)
-    pts, tp = trimesh_voxelize3D(stl_file, h)
-    t4 = @elapsed np[].savetxt(output_file, pts, fmt="%.6f", delimiter=" ")
-    if verbose
-        t1, t2, t3 = tp[1], tp[2], tp[3]
-        tt = sum(tp) + t4
-        @info """voxelization with trimesh
+function polyhedron2particle(
+    stl_file   ::String, 
+    output_file::String, 
+    h          ::Real; 
+    method     ::String="voxel",
+    verbose    ::Bool  =false
+)
+    # inputs check
+    method in ["voxel", "ray"] || throw(ArgumentError("method must be 'voxel' or 'ray'"))
+    h > 0 || throw(ArgumentError("h must be positive"))
+
+    # implementations
+    if method == "voxel"
+        pts, tp = trimesh_voxelize3D(stl_file, h)
+        t4 = @elapsed np[].savetxt(output_file, pts, fmt="%.6f", delimiter=" ")
+        if verbose
+            t1, t2, t3 = tp[1], tp[2], tp[3]
+            tt = sum(tp) + t4
+            @info """voxelization with trimesh
+            - load model  : $(@sprintf("%6.2f", t1)) s | $(@sprintf("%6.2f", 100*t1/tt))%
+            - voxelize    : $(@sprintf("%6.2f", t2)) s | $(@sprintf("%6.2f", 100*t2/tt))%
+            - fill voxels : $(@sprintf("%6.2f", t3)) s | $(@sprintf("%6.2f", 100*t3/tt))%
+            - write .xyz  : $(@sprintf("%6.2f", t4)) s | $(@sprintf("%6.2f", 100*t4/tt))%
+            $("-"^34)
+            - total time  : $(@sprintf("%6.2f", tt)) s
+            """
+        end
+    elseif method == "ray"
+        t1 = @elapsed begin
+            meshdata = readmesh(stl_file, precision="FP32")
+        end
+        t2 = @elapsed begin
+            coords = _voxelize(meshdata, h)
+        end
+        t3 = @elapsed begin
+            savexyz(joinpath(@__DIR__, output_file), coords)
+        end
+        tt = t1 + t2 + t3
+        @info """ray casting
         - load model  : $(@sprintf("%6.2f", t1)) s | $(@sprintf("%6.2f", 100*t1/tt))%
-        - voxelize    : $(@sprintf("%6.2f", t2)) s | $(@sprintf("%6.2f", 100*t2/tt))%
-        - fill voxels : $(@sprintf("%6.2f", t3)) s | $(@sprintf("%6.2f", 100*t3/tt))%
-        - write .xyz  : $(@sprintf("%6.2f", t4)) s | $(@sprintf("%6.2f", 100*t4/tt))%
+        - ray casting : $(@sprintf("%6.2f", t2)) s | $(@sprintf("%6.2f", 100*t2/tt))%
+        - write .xyz  : $(@sprintf("%6.2f", t3)) s | $(@sprintf("%6.2f", 100*t3/tt))%
         $("-"^34)
         - total time  : $(@sprintf("%6.2f", tt)) s
         """
     end
+
     return nothing
 end
 
