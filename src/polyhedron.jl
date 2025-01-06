@@ -24,14 +24,15 @@ include(joinpath(rs_dir, "_utils.jl"   ))
 include(joinpath(rs_dir, "_workflow.jl"))
 
 """
-    polyhedron2particle(stl_file::String, output_file, h; verbose::Bool=false, )
+    polyhedron2particle(stl_file::String, output_file, h; method::String="voxel", 
+        verbose::Bool=false)
 
 Description:
 ---
 Convert a polyhedron (`.stl`) to a set of particles. The function will write the populated 
 particles of each voxel into a `.xyz` file. The voxel size is defined by `h`, it is suggest
-to be equal to the MPM background grid size. The `verbose` is a flag to show the time 
-consumption of each step.
+to be equal to the MPM background grid size. `method` can be "voxel" or "ray" in string.The 
+`verbose` is a flag to show the time consumption of each step.
 
 Example:
 ---
