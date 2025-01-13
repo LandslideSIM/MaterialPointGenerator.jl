@@ -148,7 +148,7 @@ Description:
 Convert the CSV file (.csv) to the Gmsh geo (.geo) file.
 """
 function csv2geo2d(csv_file::String, geo_file::String)
-    if csv_file[end-3 : end] ≠ ".csv" || geo_file[end-3 : end] == ".geo"
+    if csv_file[end-3 : end] ≠ ".csv" || geo_file[end-3 : end] ≠ ".geo"
         st1 = "The input file should be a CSV file (.csv)"
         st2 = "The output file should be a Gmsh geo file (.geo)"
         throw(ArgumentError(st1 * "\n" * st2))
