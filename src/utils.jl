@@ -106,9 +106,8 @@ Description:
 Read the 2D `.xy` file from `file_dir`.
 """
 function readxy(file_dir::P) where P <: String
-    xyz = readdlm(file_dir, ' ', Float64)
-    size(xyz, 2) == 2 || throw(ArgumentError("The input file should have 2 columns."))
-    return xyz
+    xy = readdlm(file_dir, ' ')[:, 1:2]
+    return Float64.(xy)
 end
 
 """
@@ -119,9 +118,8 @@ Description:
 Read the 3D `.xyz` file from `file_dir`.
 """
 function readxyz(file_dir::P) where P <: String
-    xyz = readdlm(file_dir, ' ', Float64)
-    size(xyz, 2) == 3 || throw(ArgumentError("The input file should have 3 columns."))
-    return xyz
+    xyz = readdlm(file_dir, ' ')[:, 1:3]
+    return Float64.(xyz)
 end
 
 """
