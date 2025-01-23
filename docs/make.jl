@@ -1,21 +1,4 @@
-using CondaPkg
-
-if Sys.ARCH ≠ :aarch64
-    CondaPkg.withenv() do
-        cmd = `python -c "import embreex"`
-        try
-            run(cmd)
-            return nothing
-        catch
-            CondaPkg.add_pip("embreex")
-            return nothing
-        end
-    end
-end
-
 using Documenter, DocumenterTools, MaterialPointGenerator
-
-MaterialPointGenerator.__init__()
 
 makedocs(
     modules = [MaterialPointGenerator],
