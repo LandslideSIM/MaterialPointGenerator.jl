@@ -172,6 +172,111 @@ size in the MPM simulation. `bottom` is a value, which means the plane `z = bott
     return pts
 end
 
+"""
+    dem2particle(dem, h, bottom, layer)
+
+Description:
+---
+Generate particles from a given DEM file and a bottom value (flat bottom surface). `dem` is 
+a coordinates Array with three columns (x, y, z), and the `bottom` value should be lower
+than the dem. `h` is the space of grid size in `z` direction used in the MPM simulation.
+`layer` is a Vector of Matrix with three columns (x, y, z), which represents the layer
+surfaces. Note that layers are sorted from top to bottom.
+"""
+@views function dem2particle(
+    dem   ::Matrix{T2}, 
+    h     ::T2, 
+    bottom::T2,
+    layer ::Vector{Matrix{T2}}
+) where T2
+    # values check
+    T1 = T2 == Float32 ? Int32 : Int64
+    size(dem, 2) == 3 || throw(ArgumentError("DEM should have three columns: x, y, z"))
+    h > 0 || throw(ArgumentError("The cloud point space on z: $(h) should be positive"))
+    bottom < minimum(dem[:, 3]) || throw(ArgumentError(
+        "The bottom coord $(bottom) is higher than the dem ($(minimum(dem[:, 3])))"))
+    layer_num = length(layer)
+    dem = sort_pts_xy(dem)
+    for i in 1:layer_num layer[i] = sort_pts_xy(layer[i]) end
+    for i in 1:layer_num
+        dem[:, 1:2] == layer[i][:, 1:2] || throw(ArgumentError(
+            "The layer $i should have the same x, y coordinates as the DEM"))        
+    end
+    layer_num > 1 && all.(layer[i][:, 3] .≤ layer[i + 1][:, 3] for i in 1:length(layer) - 1)
+
+    # move the model to the z = 0 plane
+    dem[:, 3] .-= bottom
+    for i in eachindex(layer) layer[i][:, 3] .-= bottom end
+
+    # calculate the number of particles in z direction
+    ptslength = Vector{T1}(undef, size(dem, 1))
+    @inbounds for i in axes(dem, 1)
+        ptslength[i] = ceil(T1, dem[i, 3] / h)
+    end
+
+    # create the particles
+    pts_cen = zeros(T2 , Int(sum(ptslength)), 3)
+    pts_nid = zeros(Int, Int(sum(ptslength)))
+
+    v = 0
+    @inbounds for i in axes(dem, 1)
+        x, y = dem[i, 1], dem[i, 2]
+        for j in 1:ptslength[i]
+            z = (j - 1) * h
+            pts_cen[v+j, 1] = x
+            pts_cen[v+j, 2] = y
+            pts_cen[v+j, 3] = z
+
+            # if z > layer[1][i, 3] 
+            #     pts_nid[v+j] = 1
+            # elseif layer[1][i, 3] ≥ z > layer[2][i, 3]
+            #     pts_nid[v+j] = 2
+            # elseif layer[2][i, 3] ≥ z > layer[3][i, 3]
+            #     pts_nid[v+j] = 3
+            # else 
+            #     pts_nid[v+j] = 4
+            # end
+
+            n_layers = length(layer)
+            found = false
+            
+            # 处理第一个条件：z > layer[1][i,3]
+            if z > layer[1][i,3]
+                pts_nid[v+j] = 1
+                found = true
+            else
+                # 遍历中间层（layer[2]到layer[end-1]）
+                for k in 2:(n_layers-1)
+                    if layer[k-1][i,3] >= z > layer[k][i,3]
+                        pts_nid[v+j] = k
+                        found = true
+                        break
+                    end
+                end
+            end
+            
+            # 处理最后一个区间和else分支
+            if !found
+                if n_layers >= 2 && layer[n_layers-1][i,3] >= z > layer[n_layers][i,3]
+                    pts_nid[v+j] = n_layers
+                else
+                    pts_nid[v+j] = n_layers + 1
+                end
+            end
+        end
+        v += ptslength[i]
+    end
+
+    # move the model back to the original position
+    pts_cen[:, 3] .+= (h * T2(0.5)) .+ bottom
+
+    # populate the particles in each cell
+    pts = populate_pts(pts_cen, h)
+    nid = repeat(pts_nid, inner=8)
+
+    return pts, nid
+end
+
 
 """
     dem2particle(dem, h, bottom)
@@ -230,4 +335,104 @@ than the dem. `h` is the space of grid size in `z` direction used in the MPM sim
     # populate the particles in each cell
     pts = populate_pts(pts_cen, h)
     return pts
+end
+
+"""
+    dem2particle(dem, h, bottom, layer)
+
+Description:
+---
+Generate particles from a given DEM file and a bottom surface file. `dem` is a coordinates
+Array with three columns (x, y, z), and the z value should be lower than the `dem`. `h` is 
+the space of grid size in `z` direction used in the MPM simulation. `layer` is a Vector of 
+Matrix with three columns (x, y, z), which represents the layer surfaces. Note that layers 
+are sorted from top to bottom.
+"""
+@views function dem2particle(
+    dem   ::Matrix{T2}, 
+    h     ::T2, 
+    bottom::Matrix{T2},
+    layer ::Vector{Matrix{T2}}
+) where T2
+    # values check
+    T1 = T2 == Float32 ? Int32 : Int64
+    size(dem, 2) == 3 || throw(ArgumentError("DEM should have three columns: x, y, z"))
+    size(bottom, 2) == 3 || throw(ArgumentError("Bottom should have three columns: x, y, z"))
+    h > 0 || throw(ArgumentError("The cloud point space on z: $(h) should be positive"))
+    all(bottom[:, 3] .< dem[:, 3]) || throw(ArgumentError(
+        "The bottom surface should be lower than the DEM"))
+    all(dem[:, 1:2] .== bottom[:, 1:2]) || throw(ArgumentError(
+        "The bottom should have the same x and y coordinates as the dem"))
+    layer_num = length(layer)
+    dem = sort_pts_xy(dem)
+    for i in 1:layer_num layer[i] = sort_pts_xy(layer[i]) end
+    for i in 1:layer_num
+        dem[:, 1:2] == layer[i][:, 1:2] || throw(ArgumentError(
+            "The layer $i should have the same x, y coordinates as the DEM"))        
+    end
+    layer_num > 1 && all.(layer[i][:, 3] .≤ layer[i + 1][:, 3] for i in 1:length(layer) - 1)
+
+    # move the models to the z = 0 plane
+    z_oft = minimum(bottom[:, 3])
+    bottom[:, 3] .-= z_oft
+    dem[:, 3] .-= z_oft
+    for i in eachindex(layer) layer[i][:, 3] .-= z_oft end
+
+    # calculate the number of particles in z direction
+    ptslength = Vector{T1}(undef, size(dem, 1))
+    @inbounds for i in axes(dem, 1)
+        bt = floor(T1, bottom[i, 3] / h) * h
+        bottom[i, 3] = bt
+        ptslength[i] = ceil(T1, (dem[i, 3] - bt) / h)
+    end
+
+    # create the particles
+    pts_cen = zeros(T2, Int(sum(ptslength)), 3)
+    pts_nid = zeros(Int, Int(sum(ptslength)))
+    v = 0
+    @inbounds for i in axes(dem, 1)
+        x, y, z = dem[i, 1], dem[i, 2], bottom[i, 3]
+        for j in 1:ptslength[i]
+            zp = z + (j - 1) * h
+            pts_cen[v+j, 1] = x
+            pts_cen[v+j, 2] = y
+            pts_cen[v+j, 3] = zp
+
+            n_layers = length(layer)
+            found = false
+            
+            # 处理第一个条件：zp > layer[1][i,3]
+            if zp > layer[1][i,3]
+                pts_nid[v+j] = 1
+                found = true
+            else
+                # 遍历中间层（layer[2]到layer[end-1]）
+                for k in 2:(n_layers-1)
+                    if layer[k-1][i,3] >= zp > layer[k][i,3]
+                        pts_nid[v+j] = k
+                        found = true
+                        break
+                    end
+                end
+            end
+            
+            # 处理最后一个区间和else分支
+            if !found
+                if n_layers >= 2 && layer[n_layers-1][i,3] >= zp > layer[n_layers][i,3]
+                    pts_nid[v+j] = n_layers
+                else
+                    pts_nid[v+j] = n_layers + 1
+                end
+            end
+        end
+        v += ptslength[i]
+    end
+
+    # move the model back to the original position
+    pts_cen[:, 3] .+= (h * 0.5) .+ z_oft
+
+    # populate the particles in each cell
+    pts = populate_pts(pts_cen, h)
+    nid = repeat(pts_nid, inner=8)
+    return pts, nid
 end

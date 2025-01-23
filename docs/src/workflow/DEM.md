@@ -52,3 +52,33 @@ dem2particle(
 !!! info
 
     DEM-2 and DEM-1 should have exactly the same coordinates in the x-y plane. This can be achieved using [`rasterizeDEM`](@ref).
+
+## Advanced
+
+Here, we consider attaching geological structures (material properties) to the filled material points. The output of this workflow consists of two files: the first, as before, is a 3D scatter coordinate file in .xyz format, and the second is a material ID file (.nid) with the same number of points as the scatter file.
+
+To prepare for this, you need to have layered surface files in DEM format, which should have exactly the same x-y coordinates as the input DEM surface file (this can be achieved using parameters a and b). They should look like the following:
+
+![image4](image4.png)
+
+```@docs
+dem2particle(
+    dem   ::Matrix{T2}, 
+    h     ::T2, 
+    bottom::T2,
+    layer ::Vector{Matrix{T2}}
+) where T2
+```
+
+Assuming that we have processed each layered DEM(s), they should be saved in the layer Vector in order from top to bottom along the z-direction as input. Please refer to the usage in the Example section.
+
+This workflow also supports the case where a bottom DEM is provided:
+
+```@docs
+dem2particle(
+    dem   ::Matrix{T2}, 
+    h     ::T2, 
+    bottom::Matrix{T2},
+    layer ::Vector{Matrix{T2}}
+) where T2
+```

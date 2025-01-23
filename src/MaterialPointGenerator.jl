@@ -22,7 +22,16 @@ const embreex     = Ref{Py}()
 function __init__()
     @info "checking environment..."
     if Sys.ARCH ≠ :aarch64
-        CondaPkg.add_pip("embreex")
+        CondaPkg.withenv() do
+            cmd = `python -c "import embreex"`
+            try
+                run(cmd)
+                return nothing
+            catch
+                CondaPkg.add_pip("embreex")
+                return nothing
+            end
+        end
         embreex[] = pyimport("embreex")
     end
     trimesh[]     = pyimport("trimesh")
