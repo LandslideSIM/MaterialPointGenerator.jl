@@ -17,23 +17,9 @@ const trimesh     = Ref{Py}()
 const voxelize_fn = Ref{Py}()
 const np          = Ref{Py}()
 const meshio      = Ref{Py}()
-const embreex     = Ref{Py}()
 
 function __init__()
     @info "checking environment..."
-    if Sys.ARCH ≠ :aarch64
-        CondaPkg.withenv() do
-            cmd = `python -c "import embreex"`
-            try
-                run(cmd)
-                return nothing
-            catch
-                CondaPkg.add_pip("embreex")
-                return nothing
-            end
-        end
-        embreex[] = pyimport("embreex")
-    end
     trimesh[]     = pyimport("trimesh")
     np[]          = pyimport("numpy")
     meshio[]      = pyimport("meshio")
