@@ -7,12 +7,18 @@
 |  Start Date : 01/01/2022                                                                 |
 |  Affiliation: Risk Group, UNIL-ISTE                                                      |
 |  Functions  : 01. fastvtp                                                                |
-|               02. savexyz                                                                |
-|               03. readxyz                                                                |
-|               04. sortbycol                                                              |
-|               05. sortbycol!                                                             |
-|               06. csv2geo2d                                                              |
-|               07. sort_pts                                                               |
+|               02. savedata                                                               |
+|               03. readdata                                                               |
+|               04. savexy                                                                 |
+|               05. savexyz                                                                |
+|               06. readxy                                                                 |
+|               07. readxyz                                                                |
+|               08. sortbycol                                                              |
+|               09. sortbycol!                                                             |
+|               10. csv2geo2d                                                              |
+|               11. sort_pts                                                               |
+|               12. sort_pts_xy                                                            |
+|               13. populate_pts                                                           |
 +==========================================================================================#
 
 export fastvtp
@@ -24,6 +30,7 @@ export sortbycol
 export sortbycol!
 export csv2geo2d
 export sort_pts
+export sort_pts_xy
 export populate_pts
 
 """
@@ -178,6 +185,19 @@ function sort_pts(pts::Matrix)
     else
         throw(ArgumentError("The input points should have 2 or 3 columns (2/3D)"))
     end
+    return pts[idx, :]
+end
+
+
+"""
+    sort_pts_xy(pts::Matrix)
+
+Description:
+---
+Sort the points in pts by the x- and y-coordinates, in that order.
+"""
+function sort_pts_xy(pts::Matrix)
+    idx = sortperm(eachrow(pts), by=row -> (row[1], row[2]))
     return pts[idx, :]
 end
 
