@@ -6,22 +6,20 @@
 |  Programmer : Zenan Huo                                                                  |
 |  Start Date : 01/01/2022                                                                 |
 |  Affiliation: Risk Group, UNIL-ISTE                                                      |
-|  Functions  : 01. fastvtp                                                                |
-|               02. savedata                                                               |
-|               03. readdata                                                               |
-|               04. savexy                                                                 |
-|               05. savexyz                                                                |
-|               06. readxy                                                                 |
-|               07. readxyz                                                                |
-|               08. sortbycol                                                              |
-|               09. sortbycol!                                                             |
-|               10. csv2geo2d                                                              |
-|               11. sort_pts                                                               |
-|               12. sort_pts_xy                                                            |
-|               13. populate_pts                                                           |
+|  Functions  : 01. savedata                                                               |
+|               02. readdata                                                               |
+|               03. savexy                                                                 |
+|               04. savexyz                                                                |
+|               05. readxy                                                                 |
+|               06. readxyz                                                                |
+|               07. sortbycol                                                              |
+|               08. sortbycol!                                                             |
+|               09. csv2geo2d                                                              |
+|               10. sort_pts                                                               |
+|               11. sort_pts_xy                                                            |
+|               12. populate_pts                                                           |
 +==========================================================================================#
 
-export fastvtp
 export savexy
 export savexyz
 export readxy
@@ -32,24 +30,6 @@ export csv2geo2d
 export sort_pts
 export sort_pts_xy
 export populate_pts
-
-"""
-    fastvtp(coords; vtp_file="output.vtp", data::T=NamedTuple())
-
-Description:
----
-Generates a `.vtp` file by passing custom fields.
-"""
-function fastvtp(coords; vtp_file="output.vtp", data::T=NamedTuple()) where T <: NamedTuple
-    pts_num = size(coords, 1)
-    vtp_cls = [MeshCell(PolyData.Verts(), [i]) for i in 1:pts_num]
-    vtk_grid(vtp_file, coords', vtp_cls, ascii=false) do vtk
-        keys(data) ≠ () && for vtp_key in keys(data)
-            vtk[string(vtp_key)] = getfield(data, vtp_key)
-        end
-    end
-    return nothing
-end
 
 """
     savedata(file_dir::String, data)

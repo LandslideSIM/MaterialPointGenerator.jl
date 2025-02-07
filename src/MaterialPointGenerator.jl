@@ -11,7 +11,7 @@
 
 module MaterialPointGenerator
 
-using DelimitedFiles, CondaPkg, Gmsh, NearestNeighbors, Printf, PythonCall, WriteVTK
+using DelimitedFiles, CondaPkg, Gmsh, NearestNeighbors, Printf, PythonCall
 
 const trimesh     = Ref{Py}()
 const voxelize_fn = Ref{Py}()
