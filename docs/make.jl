@@ -1,14 +1,17 @@
-using Documenter, DocumenterTools, MaterialPointGenerator
+using Documenter, DocumenterTools, DocumenterVitepress, MaterialPointGenerator
+
+DocMeta.setdocmeta!(MaterialPointGenerator, :DocTestSetup, :(using MaterialPointGenerator); 
+    recursive=true)
 
 makedocs(
     modules = [MaterialPointGenerator],
-    format = Documenter.HTML(
-        assets = ["assets/favicon.ico"],
-        prettyurls = get(ENV, "CI", nothing) == "true"
-    ),
-    clean = false,
-    sitename = "MaterialPointGenerator.jl",
+    repo = Remotes.GitHub("LandslideSIM", "MaterialPointGenerator.jl"),
     authors = "Zenan Huo",
+    sitename = "MaterialPointGenerator.jl",
+    format = DocumenterVitepress.MarkdownVitepress(
+        assets = ["assets/favicon.ico"],
+        repo = "https://github.com/LandslideSIM/MaterialPointGenerator.jl",
+    ),
     pages = [
         "Home" => "index.md",
         "Workflow" => Any[
@@ -23,7 +26,6 @@ makedocs(
             "example/DEM.md"
         ],
         "utils.md"
-
     ],
     warnonly = [:missing_docs, :cross_references],
 )
@@ -31,6 +33,8 @@ makedocs(
 deploydocs(
     repo = "github.com/LandslideSIM/MaterialPointGenerator.jl.git",
     target = "build",
+    devbranch="main",
     branch = "gh-pages",
+    push_preview = true,
     versions=["stable" => "v^", "dev" => "dev"]
 )
