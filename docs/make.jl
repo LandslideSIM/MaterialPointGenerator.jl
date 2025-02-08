@@ -13,7 +13,7 @@ makedocs(
         repo = "https://github.com/LandslideSIM/MaterialPointGenerator.jl",
     ),
     pages = [
-        "Home" => "index.md",
+        "MaterialPointGenerator.jl" => "index.md",
         "Workflow" => Any[
             "workflow/simple_mesh.md",
             "workflow/polygon.md",
@@ -35,6 +35,5 @@ deploydocs(
     target = "build",
     devbranch="main",
     branch = "gh-pages",
-    push_preview = true,
-    versions=["stable" => "v^", "dev" => "dev"]
+    push_preview = true
 )
