@@ -6,7 +6,7 @@ makedocs(
     authors = "Zenan Huo",
     sitename = "MaterialPointGenerator.jl",
     format = DocumenterVitepress.MarkdownVitepress(
-        #assets = ["assets/favicon.ico"],
+        assets = ["assets/favicon.ico"],
         repo = "github.com/LandslideSIM/MaterialPointGenerator.jl",
         devbranch = "main",
         devurl = "dev";

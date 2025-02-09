@@ -12,7 +12,7 @@ hero:
       text: View on GitHub
       link: https://github.com/LandslideSIM/MaterialPointGenerator.jl
   image:
-    src: /assets/logobg.png
+    src: /assets/logo.svg
     alt: MaterialPointGenerator.jl
 
 features:
