@@ -1,17 +1,18 @@
 using Documenter, DocumenterTools, DocumenterVitepress, MaterialPointGenerator
 
-DocMeta.setdocmeta!(MaterialPointGenerator, :DocTestSetup, :(using MaterialPointGenerator); 
-    recursive=true)
-
 makedocs(
     modules = [MaterialPointGenerator],
     repo = Remotes.GitHub("LandslideSIM", "MaterialPointGenerator.jl"),
     authors = "Zenan Huo",
     sitename = "MaterialPointGenerator.jl",
     format = DocumenterVitepress.MarkdownVitepress(
-        assets = ["assets/favicon.ico"],
-        repo = "https://github.com/LandslideSIM/MaterialPointGenerator.jl",
+        #assets = ["assets/favicon.ico"],
+        repo = "github.com/LandslideSIM/MaterialPointGenerator.jl",
+        devbranch = "main",
+        devurl = "dev";
     ),
+    source = "src",
+    build = "build",
     pages = [
         "MaterialPointGenerator.jl" => "index.md",
         "Workflow" => Any[
