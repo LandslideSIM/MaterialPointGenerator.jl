@@ -2,7 +2,7 @@
 |        MaterialPointGenerator.jl: Generate structured material particles in Julia        |
 +------------------------------------------------------------------------------------------+
 |  File Name  : _utils.jl                                                                  |
-|  Description: Generate particles from a given DEM file                                   |
+|  Description: extra utils functions for DEM                                              |
 |  Programmer : Zenan Huo                                                                  |
 |  Start Date : 01/01/2022                                                                 |
 |  Affiliation: Risk Group, UNIL-ISTE                                                      |
@@ -11,6 +11,14 @@
 
 export insolidbase
 
+"""
+    insolidbase(mp::Matrix{T2}, surf::Matrix{T2}, nv::Matrix{T2}) where T2
+
+Description:
+---
+Check if the points are inside the solid. The function uses the normal vector, and return 
+the points that are outside the surface.
+"""
 function insolidbase(mp::Matrix{T2}, surf::Matrix{T2}, nv::Matrix{T2}) where T2
     # input bounds check
     size(surf) == size(nv) || throw(DimensionMismatch(
