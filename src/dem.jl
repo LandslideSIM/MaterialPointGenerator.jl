@@ -14,6 +14,8 @@
 export dem2particle
 export rasterizeDEM
 
+include(joinpath(@__DIR__, "_dem/_utils.jl"))
+
 """
     IDW!(k, p, dem, idxs, ptslist, tree)
 
