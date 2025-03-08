@@ -146,7 +146,9 @@ function csv2geo2d(csv_file::String, geo_file::String)
             write(file, "Point($id) = {$x, $y, 0, lc};\n")
         end
     end
-    @info ".geo saved at $geo_file"
+    @info """.geo file saved at: 
+    $geo_file
+    """
     return nothing
 end
 

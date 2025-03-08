@@ -1,16 +1,17 @@
-using Documenter, DocumenterTools, MaterialPointGenerator
+using Documenter, DocumenterVitepress, MaterialPointGenerator
 
 makedocs(
     modules = [MaterialPointGenerator],
-    format = Documenter.HTML(
-        assets = ["assets/favicon.ico"],
-        prettyurls = get(ENV, "CI", nothing) == "true"
+    format = DocumenterVitepress.MarkdownVitepress(
+        repo = "github.com/LandslideSIM/MaterialPointGenerator.jl",
+        devbranch = "main",
+        devurl = "dev"
     ),
-    clean = false,
     sitename = "MaterialPointGenerator.jl",
     authors = "Zenan Huo",
     pages = [
         "Home" => "index.md",
+        "getstarted.md",
         "Workflow" => Any[
             "workflow/simple_mesh.md",
             "workflow/polygon.md",
@@ -23,14 +24,14 @@ makedocs(
             "example/DEM.md"
         ],
         "utils.md"
-
     ],
     warnonly = [:missing_docs, :cross_references],
 )
 
 deploydocs(
-    repo = "github.com/LandslideSIM/MaterialPointGenerator.jl.git",
+    repo = "github.com/LandslideSIM/MaterialPointGenerator.jl",
     target = "build",
+    devbranch = "main",
     branch = "gh-pages",
-    versions=["stable" => "v^", "dev" => "dev"]
+    push_preview = true
 )
