@@ -1,9 +1,12 @@
+/* 引入 Google Fonts 的 Vazirmatn 字体 */
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap');
+
 .VPHero .clip {
   white-space: pre;
   max-width: 600px;
 }
 
-/* 控制 Hero 部分的图片宽度 */
+/* 控制 Hero 部分的图片宽度和背景尺寸 */
 .VPHero .VPImage {
   width: 40%; /* 设置你想要的宽度 */
   max-width: 100%; /* 确保图片适应容器 */
@@ -11,6 +14,8 @@
   display: flex;
   justify-content: center; /* 水平居中 */
   align-items: center; /* 垂直居中 */
+  background-size: 90% 90%; /* 增大背景尺寸，确保绿色可见 */
+  background-position: center; /* 背景居中 */
 }
 
 .VPHero .text {
@@ -25,15 +30,18 @@
   white-space: normal; /* 允许换行，默认值，可选 */
 }
 
-.VPNavBarAppearance {
-  display: none !important;
-}
-
 /* Fonts */
 
 @font-face {
     font-family: JuliaMono-Regular;
     src: url("https://cdn.jsdelivr.net/gh/cormullion/juliamono/webfonts/JuliaMono-Regular.woff2");
+}
+
+/* 为波斯语 (fa) 设置字体 */
+:root:where(:lang(fa)) {
+  --vp-font-family-base:
+    'Vazirmatn', 'Inter', ui-sans-serif, system-ui, sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 }
 
 :root {
@@ -44,10 +52,24 @@
 
   /* Code Snippet font */
   --vp-font-family-mono: JuliaMono-Regular, monospace;
+
+  /* Hero Section */
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: -webkit-linear-gradient(
+    120deg,
+    #bd34fe 30%,
+    #399545
+  );
+  --vp-home-hero-image-background-image: linear-gradient(
+    -45deg,
+    #4160A8 0%, /* 蓝色 */
+    #875699 5%, /* 紫色 */
+    #399545 /* 绿色 */
+  );
+  --vp-home-hero-image-filter: blur(44px);
 }
 
-/* Disable contextual alternates (kind of like ligatures but different) in monospace, 
-   which turns `/>` to an up arrow and `|>` (the Julia pipe symbol) to an up arrow as well. */
+/* Disable contextual alternates in monospace */
 .mono-no-substitutions {
   font-family: "JuliaMono-Regular", monospace;
   font-feature-settings: "calt" off;
@@ -103,9 +125,9 @@ pre, code {
   --vp-dark-bg-dimm: #101010;
   --vp-source-bg: #414040;
 
-    /* Borders */
+  /* Borders */
   --vp-dark-border: #3b8a65;
-    /* custom tip */
+  /* custom tip */
   --vp-custom-block-tip-border: var(--vp-c-brand-darker);
   --vp-custom-block-tip-bg: var(--vp-tip-bg);
   /* button */
@@ -123,6 +145,13 @@ pre, code {
   --vp-custom-block-tip-border: var(--vp-dark-green-dark);
   --vp-custom-block-tip-text: var(--vp-dark-subtext);
   --vp-custom-block-tip-bg: var(--vp-dark-gray-mute);
+  /* Hero Section (与亮色模式一致的渐变) */
+  --vp-home-hero-image-background-image: linear-gradient(
+    -45deg,
+    #4160A8 0%, /* 蓝色 */
+    #875699 5%, /* 紫色 */
+    #399545 /* 绿色 */
+  );
 }
 
 /* Button */
@@ -153,13 +182,6 @@ pre, code {
     var(--julia-purple) 15%,
     var(--vp-dark-green-light),
     var(--vp-dark-green)
-
-  );
-  --vp-home-hero-image-background-image: linear-gradient(
-    -45deg,
-    var(--vp-dark-green) 30%,
-    var(--vp-dark-green-light),
-    var(--vp-dark-gray) 30%
   );
   --vp-home-hero-image-filter: blur(56px);
 }
@@ -168,27 +190,9 @@ pre, code {
   --vp-c-brand-1: var(--vp-dark-green-light);
   --vp-c-brand-2: var(--vp-dark-green-lighter);
   --vp-c-brand-3: var(--vp-dark-green);
-
 }
 
-/* Component: Home */
-:root {
-  --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: -webkit-linear-gradient(
-    120deg,
-    #9558B2 30%,
-    #CB3C33
-  );
-
-  --vp-home-hero-image-background-image: linear-gradient(
-    -45deg,
-    #9558b282 30%,
-    #3798269a 30%,
-    #cb3d33e3 
-  );
-  --vp-home-hero-image-filter: blur(40px);
-}
-
+/* 响应式设计 */
 @media (min-width: 640px) {
   :root {
     --vp-home-hero-image-filter: blur(56px);
@@ -197,18 +201,16 @@ pre, code {
 
 @media (min-width: 960px) {
   :root {
-    --vp-home-hero-image-filter: blur(72px);
+    --vp-home-hero-image-filter: blur(68px);
   }
 }
 
 /* Component: Algolia */
-
 .DocSearch {
   --docsearch-primary-color: var(--vp-c-brand) !important;
 }
 
 /* Component: MathJax */
-
 mjx-container > svg {
   display: block;
   margin: auto;
@@ -229,19 +231,19 @@ mjx-container > svg {
 }
 
 /* Component: Docstring Custom Block */
-
 .jldocstring.custom-block {
-    border: 1px solid var(--vp-c-gray-2);
-    color: var(--vp-c-text-1);
-    overflow: hidden;
+  border: 1px solid var(--vp-c-gray-2);
+  color: var(--vp-c-text-1);
+  overflow: hidden;
 }
 
 .jldocstring.custom-block summary {
-    font-weight: 700;
-    cursor: pointer;
-    user-select: none;
-    margin: 0 0 8px;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  margin: 0 0 8px;
 }
+
 .jldocstring.custom-block summary a {
   pointer-events: none;
   text-decoration: none;
@@ -271,4 +273,10 @@ mjx-container > svg {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
+}
+
+/* 用于搜索图标 */
+img[src='/search.png'] {
+  width: 100%;
+  aspect-ratio: 1 / 1;
 }
