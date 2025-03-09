@@ -1,7 +1,7 @@
 name = "MaterialPointGenerator"
 uuid = "18deba1c-5063-41ee-a388-01f264c5a914"
 authors = ["ZenanH <zenan.huo@outlook.com>"]
-version = "0.1.17"
+version = "0.1.18"
 
 [deps]
 CondaPkg = "992eb4ea-22a4-4c89-a5bb-47a3300528ab"
