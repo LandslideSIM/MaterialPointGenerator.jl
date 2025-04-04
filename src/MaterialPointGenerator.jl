@@ -57,6 +57,11 @@ function __init__()
             2) some features will fall back to native Python code
             """
         end
+    else 
+        @warn """embreeX - Python Wrapper for Embree
+        1) not supported on MacOS arm and x86
+        2) some features will fall back to native Python code
+        """
     end
 end
 
