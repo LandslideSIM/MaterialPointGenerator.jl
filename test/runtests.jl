@@ -14,6 +14,8 @@ using Test
 @test !pyconvert(Bool, PythonCall.pyisnull(MaterialPointGenerator.rasterize   ))
 @test !pyconvert(Bool, PythonCall.pyisnull(MaterialPointGenerator.pyKDTree    ))
 @test !pyconvert(Bool, PythonCall.pyisnull(MaterialPointGenerator.MultiPolygon))
+@test !pyconvert(Bool, PythonCall.pyisnull(MaterialPointGenerator.ConvexHull  ))
+@test !pyconvert(Bool, PythonCall.pyisnull(MaterialPointGenerator.v_contains  ))
 
 if Sys.ARCH == :x86_64 && !Sys.isapple()
     @test !pyconvert(Bool, PythonCall.pyisnull(MaterialPointGenerator.embreex))
