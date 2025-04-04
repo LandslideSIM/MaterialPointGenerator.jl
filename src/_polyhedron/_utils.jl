@@ -24,7 +24,7 @@ end
 end
 
 @inline function intersect_z(v1x::T, v1y::T, v1z::T, v2x::T, v2y::T, v2z::T, v3x::T, v3y::T,
-    v3z::T, px::T, py::T) where T
+    v3z::T, px::T, py::T, mzmin::T, h::T) where T
 
     # 1) 计算三角形在 XY 平面的面积（用 2D 叉积）
     #    areaABC = cross( (v2 - v1), (v3 - v1) )，只用 x、y 分量
@@ -43,12 +43,13 @@ end
     gamma = 1 - alpha - beta
 
     # 3) 用 (alpha,beta,gamma) 插值三顶点的 z 值
-    #    z = alpha*v1z + beta*v2z + gamma*v3z
-    return alpha*v1z + beta*v2z + gamma*v3z
+    z = alpha*v1z + beta*v2z + gamma*v3z
+    
+    return floor((z - mzmin) / h) * h + mzmin
 end
 
-function check_projection!(meshdata::GmshMesh{T1, T2}, h::T2, 
-    p2t::Vector, mxmin::T2, mymin::T2, niy::T1) where {T1, T2}
+function check_projection!(meshdata::GmshMesh{T1, T2}, h::T2, p2t::Vector, mxmin::T2, 
+    mymin::T2, niy::T1) where {T1, T2}
 
     @inbounds for i in axes(meshdata.data, 1)
         v1x, v1y = meshdata.data[i][1], meshdata.data[i][2]
@@ -87,7 +88,8 @@ function fill_voxel!(pts::Vector{Bool}, p2t::Vector, meshdata::GmshMesh{T1, T2},
             for tri_id in p2t[i]
                 # current triangle
                 v1x, v1y, v1z, v2x, v2y, v2z, v3x, v3y, v3z = meshdata.data[tri_id]
-                z = intersect_z(v1x, v1y, v1z, v2x, v2y, v2z, v3x, v3y, v3z, px, py)
+                z = intersect_z(v1x, v1y, v1z, v2x, v2y, v2z, v3x, v3y, v3z, px, py, mzmin, 
+                    h)
                 push!(tri_order, z)
             end
             sort!(unique!(tri_order))
@@ -100,7 +102,6 @@ function fill_voxel!(pts::Vector{Bool}, p2t::Vector, meshdata::GmshMesh{T1, T2},
 
     return nothing
 end
-
 
 @inline function fill_layers!(pts::Vector{Bool}, px::T2, py::T2, tri_order::Vector{T2}, 
     mxmin::T2, mymin::T2, mzmin::T2, mxmax::T2, mymax::T2, mzmax::T2, h::T2) where T2

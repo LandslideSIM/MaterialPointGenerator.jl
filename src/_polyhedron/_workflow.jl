@@ -67,19 +67,21 @@ function _voxelize(meshdata::GmshMesh{T1, T2}, h::Real) where {T1, T2}
     h = T2(h)
     
     # get bbox of the entire mesh
-    mxmin, mxmax = meshdata.bounds[1] - 4h, meshdata.bounds[4] + 4h
-    mymin, mymax = meshdata.bounds[2] - 4h, meshdata.bounds[5] + 4h
-    mzmin, mzmax = meshdata.bounds[3] - 4h, meshdata.bounds[6] + 4h
+    tmp = 4 .+ rand(T2, 6)
+    mxmin, mxmax = T2(meshdata.bounds[1] - tmp[1]*h), T2(meshdata.bounds[4] + tmp[4]*h)
+    mymin, mymax = T2(meshdata.bounds[2] - tmp[2]*h), T2(meshdata.bounds[5] + tmp[5]*h)
+    mzmin, mzmax = T2(meshdata.bounds[3] - tmp[3]*h), T2(meshdata.bounds[6] + tmp[6]*h)
 
     # get the number of elements in x, y, z directions
-    nex = ceil(T1, (mxmax - mxmin) / h)
-    ney = ceil(T1, (mymax - mymin) / h)
-    nez = ceil(T1, (mzmax - mzmin) / h)
-    ne  = nex * ney
+    nex  = ceil(T1, (mxmax - mxmin) / h)
+    ney  = ceil(T1, (mymax - mymin) / h)
+    nez  = ceil(T1, (mzmax - mzmin) / h)
+    ne   = nex * ney
     
     # update xmax and ymax
     mxmax = mxmin + nex * h
     mymax = mymin + ney * h
+    mzmax = mzmin + nez * h
     
     # get the number of nodes in x and y directions
     nix = T1(nex + 1)
@@ -99,4 +101,179 @@ function _voxelize(meshdata::GmshMesh{T1, T2}, h::Real) where {T1, T2}
     @info "filled with $(size(coords, 1)) particles"
 
     return coords
+end
+
+function _voxelize(
+    meshdata  ::GmshMesh{T1, T2}, 
+    msh_file  ::String, 
+    output_xyz::String, 
+    output_nid::String, 
+    h         ::Real
+) where {T1, T2}
+    h > 0 || error("h must be positive")
+    h = T2(h)
+    
+    t2 = @elapsed begin
+        # get bbox of the entire mesh
+        tmp = 4 .+ rand(T2, 6)
+        mxmin, mxmax = T2(meshdata.bounds[1] - tmp[1]*h), T2(meshdata.bounds[4] + tmp[4]*h)
+        mymin, mymax = T2(meshdata.bounds[2] - tmp[2]*h), T2(meshdata.bounds[5] + tmp[5]*h)
+        mzmin, mzmax = T2(meshdata.bounds[3] - tmp[3]*h), T2(meshdata.bounds[6] + tmp[6]*h)
+
+        # get the number of elements in x, y, z directions
+        nex  = ceil(T1, (mxmax - mxmin) / h)
+        ney  = ceil(T1, (mymax - mymin) / h)
+        nez  = ceil(T1, (mzmax - mzmin) / h)
+        ne   = nex * ney
+        
+        # update xmax and ymax
+        mxmax = mxmin + nex * h
+        mymax = mymin + ney * h
+        mzmax = mzmin + nez * h
+        
+        # get the number of nodes in x and y directions
+        nix = T1(nex + 1)
+        niy = T1(ney + 1)
+        niz = T1(nez + 1)
+        ni  = nix * niy
+        
+        # initialize the node-to-triangle mapping
+        p2t = [Vector{T1}() for _ in 1:ni]
+        check_projection!(meshdata, h, p2t, mxmin, mymin, niy)
+
+        # fill the voxels
+        pts = zeros(Bool, ni * niz)
+        fill_voxel!(pts, p2t, meshdata, niy, mxmin, mymin, mzmin, mxmax, mymax, mzmax, h)
+        pts_cen = getpts(pts, nix, niy, niz, h, mxmin, mymin, mzmin)
+    end
+
+    @pyexec """
+    def attach_nid(msh_file, output_xyz, output_nid, voxel_points, voxel_resolution,
+        np, trimesh, pygmsh, pyKDTree, pytime):
+
+        t3_start = pytime.perf_counter()
+        
+        pygmsh.initialize()
+        pygmsh.option.setNumber("General.Verbosity", 0)
+        pygmsh.open(str(msh_file))
+        
+        polyhedrons = []
+        for dim, tag in pygmsh.model.getPhysicalGroups():
+            if dim != 2:  # 只处理表面
+                continue
+                
+            group_name = pygmsh.model.getPhysicalName(dim, tag) or f"Group_dim{dim}_tag{tag}"
+            entities = pygmsh.model.getEntitiesForPhysicalGroup(dim, tag)
+            
+            node_coords = {}
+            triangles = []
+            for entity in entities:
+                elem_types, _, node_tags = pygmsh.model.mesh.getElements(dim, entity)
+                for elem_type, nodes in zip(elem_types, node_tags):
+                    if elem_type == 2:  # 三角形元素
+                        nodes_array = np.array(nodes).reshape(-1, 3)
+                        for tri_nodes in nodes_array:
+                            triangles.append(tri_nodes)
+                            for node in tri_nodes:
+                                if node not in node_coords:
+                                    node_coords[node] = pygmsh.model.mesh.getNode(node)[0]
+            
+            if not triangles:
+                print(f"{group_name}: cannot find triangles")
+                continue
+                
+            vertices = np.array(list(node_coords.values()))
+            node_map = {node: i for i, node in enumerate(node_coords)}
+            faces = np.array([[node_map[n] for n in tri] for tri in triangles])
+            mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
+            
+            is_watertight = mesh.is_watertight
+            if not is_watertight:
+                trimesh.repair.fix_winding(mesh)
+                trimesh.repair.fill_holes(mesh)
+                print(f"{group_name} is repaired (watertight: {mesh.is_watertight})")
+            
+            polyhedrons.append((group_name, mesh))
+        
+        pygmsh.finalize()
+
+        # Step 3: 分配体素点到多面体
+        voxel_group_assignments = np.full(len(voxel_points), "None", dtype=object)
+        
+        for group_name, mesh in polyhedrons:
+            if mesh.is_watertight:
+                min_bound, max_bound = mesh.bounds
+                inside_box = np.all((voxel_points >= min_bound) & (voxel_points <= max_bound), axis=1)
+                points_in_box = voxel_points[inside_box]
+                
+                inside_mesh = mesh.contains(points_in_box)
+                indices_in_box = np.where(inside_box)[0]
+                voxel_group_assignments[indices_in_box[inside_mesh]] = group_name
+
+        # Step 4: 为未分配的体素点赋予最近邻属性
+        assigned_mask = voxel_group_assignments != "None"
+        unassigned_mask = ~assigned_mask
+        
+        assigned_points = voxel_points[assigned_mask]
+        assigned_groups = voxel_group_assignments[assigned_mask]
+        unassigned_points = voxel_points[unassigned_mask]
+        
+        if len(unassigned_points) > 0 and len(assigned_points) > 0:
+            tree = pyKDTree(assigned_points)
+            distances, indices = tree.query(unassigned_points)
+            nearest_groups = assigned_groups[indices]
+            voxel_group_assignments[unassigned_mask] = nearest_groups
+        elif len(assigned_points) == 0:
+            print("There are no voxel points with assigned attributes")
+
+        print("\033[1;36m[ Info:\033[0m physical groups are attached to particles")
+
+        t3_end = pytime.perf_counter()
+
+        #===================================================================================
+        #===================================================================================
+        #===================================================================================
+
+        t4_start = pytime.perf_counter()
+
+        nid = np.repeat(voxel_group_assignments, 8)
+        offset = voxel_resolution * 0.25
+        offsets = np.array([[-offset, -offset, -offset],  # 左下后
+                            [-offset, -offset,  offset],  # 左下前
+                            [-offset,  offset, -offset],  # 左上前
+                            [-offset,  offset,  offset],  # 左上后
+                            [ offset, -offset, -offset],  # 右下后
+                            [ offset, -offset,  offset],  # 右下前
+                            [ offset,  offset, -offset],  # 右上前
+                            [ offset,  offset,  offset]]) # 右上后
+        pts = np.repeat(voxel_points, 8, axis=0) + np.tile(offsets, (len(voxel_points), 1))
+        pts_num = len(pts)
+
+        print(f"\033[1;36m[ Info:\033[0m filled with {pts_num} particles")
+
+        t4_end = pytime.perf_counter()
+
+        #===================================================================================
+        #===================================================================================
+        #===================================================================================
+
+        t5_start = pytime.perf_counter()
+
+        # 保存结果
+        np.savetxt(output_xyz, pts, fmt="%.6f", delimiter=" ")
+        np.savetxt(output_nid, nid, fmt="%s", delimiter="\\n")
+
+        t5_end = pytime.perf_counter()
+    
+        t3 = t3_end - t3_start
+        t4 = t4_end - t4_start
+        t5 = t5_end - t5_start
+
+        return [t3, t4, t5]
+    """ => attach_nid
+
+    time_result = attach_nid(msh_file, output_xyz, output_nid, np.array(pts_cen), h,
+        np, trimesh, pygmsh, pyKDTree, pytime)
+
+    return vcat(t2, pyconvert(Vector, time_result))
 end

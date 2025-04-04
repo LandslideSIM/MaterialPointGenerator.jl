@@ -360,7 +360,26 @@ function polyhedron2particle(
             """
         end
     elseif method == "ray"
-        tp = trimesh_voxelize3D(stl_file, h)
+        t1 = @elapsed begin
+            meshdata = readmesh(stl_file, precision="FP32")
+        end
+
+        pyt = _voxelize(meshdata, msh_file, output_file, nid_file, h)
+
+        t2, t3, t4, t5 = pyt[1], pyt[2], pyt[3], pyt[4]
+        tt = t1 + t2 + t3 + t4
+
+        if verbose
+            @info """ray casting
+            - load model     : $(@sprintf("%6.2f", t1)) s | $(@sprintf("%6.2f", 100*t1/tt))%
+            - ray casting    : $(@sprintf("%6.2f", t2)) s | $(@sprintf("%6.2f", 100*t2/tt))%
+            - attach nid     : $(@sprintf("%6.2f", t3)) s | $(@sprintf("%6.2f", 100*t3/tt))%
+            - fill particle  : $(@sprintf("%6.2f", t3)) s | $(@sprintf("%6.2f", 100*t4/tt))%
+            - write .xyz .nid: $(@sprintf("%6.2f", t3)) s | $(@sprintf("%6.2f", 100*t5/tt))%
+            $("-"^34)
+            - total time  : $(@sprintf("%6.2f", tt)) s
+            """
+        end
     end
 
     return nothing
