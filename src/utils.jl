@@ -18,6 +18,7 @@
 |               10. sort_pts                                                               |
 |               11. sort_pts_xy                                                            |
 |               12. populate_pts                                                           |
+|               13. stl2geo                                                                |
 +==========================================================================================#
 
 export savexy
@@ -30,6 +31,7 @@ export csv2geo2d
 export sort_pts
 export sort_pts_xy
 export populate_pts
+export stl2geo
 
 """
     savedata(file_dir::String, data)
@@ -216,4 +218,64 @@ Populate the points around the center points `pts_cen` with the spacing `h/4` (2
         throw(ArgumentError("The input points should have 2 or 3 columns (2/3D)"))
     end
     return pts
+end
+
+function stl2geo(stl_file::String, geo_file::String; lc::Real=1)
+    mesh = readmesh(stl_file)
+    open(geo_file, "w") do f
+        # 写入全局特征长度
+        println(f, "lc = $lc;")
+        # 1. 写入所有点
+        N = size(mesh.vertices, 2)  # 点数
+        for i in 1:N
+            x, y, z = mesh.vertices[:, i]
+            println(f, "Point($i) = {$x, $y, $z, lc};")
+        end
+        # 2. 提取唯一边
+        edges = Set{Tuple{Int, Int}}()
+        for face in eachcol(mesh.faces)
+            a, b, c = face
+            # 将边定义为 (小索引, 大索引) 以确保唯一性
+            push!(edges, tuple(min(a, b), max(a, b)))
+            push!(edges, tuple(min(b, c), max(b, c)))
+            push!(edges, tuple(min(c, a), max(c, a)))
+        end
+        unique_edges = collect(edges)
+        # 3. 为每条边分配线编号
+        line_dict = Dict{Tuple{Int, Int}, Int}()
+        line_id = 1
+        for edge in unique_edges
+            line_dict[edge] = line_id
+            # 写入线定义
+            p, q = edge
+            println(f, "Line($line_id) = {$p, $q};")
+            line_id += 1
+        end
+        # 4. 为每个三角形定义线循环和平面
+        M = size(mesh.faces, 2)  # 三角形数
+        for m in 1:M
+            a, b, c = mesh.faces[:, m]
+            # 计算每条边的有向线编号
+            signed_lines = Int[]
+            for (p, q) in [(a, b), (b, c), (c, a)]
+                if p < q
+                    # 方向与线定义一致
+                    push!(signed_lines, line_dict[(p, q)])
+                else
+                    # 方向相反
+                    push!(signed_lines, -line_dict[(q, p)])
+                end
+            end
+            # 写入线循环
+            println(f, "Line Loop($m) = {$(signed_lines[1]), $(signed_lines[2]), $(signed_lines[3])};")
+            # 写入平面
+            println(f, "Plane Surface($m) = {$m};")
+        end
+        # 5. 定义表面循环
+        surface_tags = join(1:M, ", ")
+        println(f, "Surface Loop(1) = {$surface_tags};")
+        # 6. 定义体
+        println(f, "Volume(1) = {1};")
+    end
+    return nothing
 end

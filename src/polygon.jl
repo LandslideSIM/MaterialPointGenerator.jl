@@ -87,20 +87,142 @@ Generate structured particles from a given `.stl` file. The particles are genera
 voxelizing the 2D space of the STL model. The voxel size `h` should be positive.
 """
 function polygon2particle(stl_file::String, output_file::String, h; verbose::Bool=true)
-    pts, tp = trimesh_voxelize2D(stl_file, h)
-    t4 = @elapsed np[].savetxt(output_file, pts, fmt="%.6f", delimiter=" ")
+    @pyexec """
+    def py_trimesh_voxelize2d(stl_file, output_file, h, 
+        trimesh, np, MultiPolygon, Polygon, Point, mapping, unary_union, rasterio, 
+        rasterize, pygmsh, pyKDTree, pytime):
+        
+        t1_start = pytime.perf_counter()
+
+        # 假设你已经加载了 STL 文件
+        mesh = trimesh.load(stl_file)
+
+        # 检查 Z 值是否全为 0
+        z_values = mesh.vertices[:, 2]
+        if np.allclose(z_values, 0) == False:
+            raise ValueError("not a 2D mesh, found non-zero Z value")
+
+        # 提取 2D 顶点（丢弃 Z 坐标）
+        vertices_2d = mesh.vertices[:, :2]
+
+        # 获取三角形的面
+        faces = mesh.faces
+
+        # 将每个三角形转为 Shapely 的 Polygon 对象
+        triangles = []
+        for face in faces:
+            triangle_coords = vertices_2d[face]
+            triangle = Polygon(triangle_coords)
+            triangles.append(triangle)
+
+        # 使用 Shapely 的 unary_union 合并所有三角形
+        multipolygon = MultiPolygon(triangles)
+        merged_polygon = unary_union(multipolygon)
+
+        # 检查结果是否为单一水密多边形
+        if isinstance(merged_polygon, Polygon) == False:
+            print("合并结果不是单一多边形，可能存在重叠或空洞。")
+
+        print("\033[1;36m[ Info:\033[0m model loaded and checked (2D polygon merged)")
+
+        t1_end = pytime.perf_counter()
+
+        #===================================================================================
+        #===================================================================================
+        #===================================================================================
+
+        t2_start = pytime.perf_counter()
+
+        # 获取多边形的边界框
+        minx, miny, maxx, maxy = merged_polygon.bounds
+
+        # 计算栅格的行列数
+        nx = int((maxx - minx) / h) + 1
+        ny = int((maxy - miny) / h) + 1
+
+        # 定义变换矩阵（从左上角开始，Y 从上到下）
+        transform = rasterio.transform.from_origin(minx, maxy, h, h)
+
+        # 栅格化多边形
+        raster = rasterize(
+            [mapping(merged_polygon)],
+            out_shape=(ny, nx),
+            transform=transform,
+            fill=0,
+            all_touched=False,
+            dtype=np.uint8
+        )
+
+        # 生成网格坐标
+        x_coords = np.linspace(minx, maxx, nx)
+        y_coords = np.linspace(maxy, miny, ny)
+        x_grid, y_grid = np.meshgrid(x_coords, y_coords)
+
+        # 提取内部点的坐标
+        inside_mask = raster.astype(bool).ravel()
+        points = np.vstack((x_grid.ravel(), y_grid.ravel())).T
+        inside_points = points[inside_mask]
+
+        print("\033[1;36m[ Info:\033[0m 2D model is rasterized")
+
+        t2_end = pytime.perf_counter()
+
+        #===================================================================================
+        #===================================================================================
+        #===================================================================================
+
+        t3_start = pytime.perf_counter()
+        offset = h * 0.25
+        offsets = np.array([[-offset,  offset],
+                            [ offset,  offset],
+                            [-offset, -offset],
+                            [ offset, -offset]])
+        pts = np.repeat(inside_points, 4, axis=0) + np.tile(offsets, (len(inside_points), 1))
+        pts_num = len(pts)
+
+        print(f"\033[1;36m[ Info:\033[0m filled with {pts_num} particles")
+
+        t3_end = pytime.perf_counter()
+
+        #===================================================================================
+        #===================================================================================
+        #===================================================================================
+
+        t4_start = pytime.perf_counter()
+        np.savetxt(output_file, pts, fmt='%.6f', delimiter=' ')
+        t4_end = pytime.perf_counter()
+
+        #===================================================================================
+        #===================================================================================
+        #===================================================================================
+
+        t1 = t1_end - t1_start
+        t2 = t2_end - t2_start
+        t3 = t3_end - t3_start
+        t4 = t4_end - t4_start
+        t5 = t1 + t2 + t3 + t4
+
+        return [t1, t2, t3, t4, t5]
+    """ => py_trimesh_voxelize2d
+
+    pytp = py_trimesh_voxelize2d(stl_file, output_file, h, 
+        trimesh, np, MultiPolygon, Polygon, Point, mapping, unary_union, rasterio, 
+        rasterize, pygmsh, pyKDTree, pytime)
+
+    tp = pyconvert(Vector, pytp)
+
     if verbose
-        t1, t2, t3 = tp[1], tp[2], tp[3]
-        tt = sum(tp) + t4
-        @info """voxelization with trimesh
-        - load model  : $(@sprintf("%6.2f", t1)) s | $(@sprintf("%6.2f", 100*t1/tt))%
-        - voxelize    : $(@sprintf("%6.2f", t2)) s | $(@sprintf("%6.2f", 100*t2/tt))%
-        - fill voxels : $(@sprintf("%6.2f", t3)) s | $(@sprintf("%6.2f", 100*t3/tt))%
-        - write .xy   : $(@sprintf("%6.2f", t4)) s | $(@sprintf("%6.2f", 100*t4/tt))%
-        $("-"^34)
-        - total time  : $(@sprintf("%6.2f", tt)) s
+        t1, t2, t3, t4, tt = tp[1], tp[2], tp[3], tp[4], tp[5]
+        @info """2D polygon
+        - load model    : $(@sprintf("%6.2f", t1)) s | $(@sprintf("%6.2f", 100*t1/tt))%
+        - rasterize     : $(@sprintf("%6.2f", t2)) s | $(@sprintf("%6.2f", 100*t2/tt))%
+        - fill particle : $(@sprintf("%6.2f", t3)) s | $(@sprintf("%6.2f", 100*t3/tt))%
+        - write .xy     : $(@sprintf("%6.2f", t4)) s | $(@sprintf("%6.2f", 100*t4/tt))%
+        $("-"^36)
+        - total time    : $(@sprintf("%6.2f", tt)) s
         """
     end
+
     return nothing
 end
 
@@ -120,123 +242,214 @@ function polygon2particle(
     h; 
     verbose    ::Bool=true
 )
-    pts, nid, tp = trimesh_voxelize2D(stl_file, msh_file, h)
-    t4 = @elapsed begin 
-        np[].savetxt(output_file, pts, fmt="%.6f", delimiter=" ")
-        np[].savetxt(nid_file, nid, fmt="%s", delimiter="\n")
-    end
+    @pyexec """
+    def py_trimesh_voxelize2d_msh(stl_file, msh_file, output_file, nid_file, h, 
+        trimesh, np, MultiPolygon, Polygon, Point, mapping, unary_union, rasterio, 
+        rasterize, pygmsh, pyKDTree, pytime):
+        
+        t1_start = pytime.perf_counter()
+
+        # 假设你已经加载了 STL 文件
+        mesh = trimesh.load(stl_file)
+
+        # 检查 Z 值是否全为 0
+        z_values = mesh.vertices[:, 2]
+        if np.allclose(z_values, 0) == False:
+            raise ValueError("not a 2D mesh, found non-zero Z value")
+
+        # 提取 2D 顶点（丢弃 Z 坐标）
+        vertices_2d = mesh.vertices[:, :2]
+
+        # 获取三角形的面
+        faces = mesh.faces
+
+        # 将每个三角形转为 Shapely 的 Polygon 对象
+        triangles = []
+        for face in faces:
+            triangle_coords = vertices_2d[face]
+            triangle = Polygon(triangle_coords)
+            triangles.append(triangle)
+
+        # 使用 Shapely 的 unary_union 合并所有三角形
+        multipolygon = MultiPolygon(triangles)
+        merged_polygon = unary_union(multipolygon)
+
+        # 检查结果是否为单一水密多边形
+        if isinstance(merged_polygon, Polygon) == False:
+            print("合并结果不是单一多边形，可能存在重叠或空洞。")
+
+        print("\033[1;36m[ Info:\033[0m model loaded and checked (2D polygon merged)")
+
+        t1_end = pytime.perf_counter()
+
+        #===================================================================================
+        #===================================================================================
+        #===================================================================================
+
+        t2_start = pytime.perf_counter()
+
+        # 获取多边形的边界框
+        minx, miny, maxx, maxy = merged_polygon.bounds
+
+        # 计算栅格的行列数
+        nx = int((maxx - minx) / h) + 1
+        ny = int((maxy - miny) / h) + 1
+
+        # 定义变换矩阵（从左上角开始，Y 从上到下）
+        transform = rasterio.transform.from_origin(minx, maxy, h, h)
+
+        # 栅格化多边形
+        raster = rasterize(
+            [mapping(merged_polygon)],
+            out_shape=(ny, nx),
+            transform=transform,
+            fill=0,
+            all_touched=False,
+            dtype=np.uint8
+        )
+
+        # 生成网格坐标
+        x_coords = np.linspace(minx, maxx, nx)
+        y_coords = np.linspace(maxy, miny, ny)
+        x_grid, y_grid = np.meshgrid(x_coords, y_coords)
+
+        # 提取内部点的坐标
+        inside_mask = raster.astype(bool).ravel()
+        points = np.vstack((x_grid.ravel(), y_grid.ravel())).T
+        inside_points = points[inside_mask]
+
+        print("\033[1;36m[ Info:\033[0m 2D model is rasterized")
+
+        t2_end = pytime.perf_counter()
+
+        #===================================================================================
+        #===================================================================================
+        #===================================================================================
+
+        t3_start = pytime.perf_counter()
+
+        # 初始化 Gmsh 并加载网格文件
+        pygmsh.initialize()
+        pygmsh.option.setNumber("General.Verbosity", 0)
+        pygmsh.open(msh_file)
+
+        # 获取所有 Physical Groups
+        physical_groups = pygmsh.model.getPhysicalGroups()
+
+        # 存储 Group 的多边形和包围盒
+        group_polygons = {}
+        group_bounds = {}
+
+        # 解析每个 Group 并生成多边形及包围盒
+        for dim, tag in physical_groups:
+            if dim == 2:
+                group_name = pygmsh.model.getPhysicalName(dim, tag)
+                entities = pygmsh.model.getEntitiesForPhysicalGroup(dim, tag)
+                triangles = []
+                for entity in entities:
+                    element_types, _, node_tags = pygmsh.model.mesh.getElements(dim, entity)
+                    if len(element_types) > 0 and element_types[0] == 2:
+                        for i in range(len(node_tags[0]) // 3):
+                            node_indices = node_tags[0][i*3:(i+1)*3]
+                            coords = [pygmsh.model.mesh.getNode(n)[0][:2] for n in node_indices]
+                            triangles.append(Polygon(coords))
+                if triangles:
+                    merged_poly = unary_union(MultiPolygon(triangles))
+                    group_polygons[group_name] = merged_poly
+                    group_bounds[group_name] = merged_poly.bounds
+
+        # 初始化 nid 为 None
+        nid = np.full(len(inside_points), None, dtype=object)
+
+        # 查询每个点所属的 Group
+        for i, point in enumerate(inside_points):
+            point_geom = Point(point[0], point[1])
+            for group_name, bounds in group_bounds.items():
+                min_x, min_y, max_x, max_y = bounds
+                if min_x <= point[0] <= max_x and min_y <= point[1] <= max_y:
+                    if group_polygons[group_name].contains(point_geom):
+                        nid[i] = group_name
+                        break
+
+        # 处理无属性的点
+        has_attr_indices = np.where(nid != None)[0]
+        has_attr_points = inside_points[has_attr_indices]
+        has_attr_nid = nid[has_attr_indices]
+
+        if len(has_attr_points) > 0:
+            tree = pyKDTree(has_attr_points)
+            no_attr_indices = np.where(nid == None)[0]
+            no_attr_points = inside_points[no_attr_indices]
+            if len(no_attr_points) > 0:
+                distances, nearest_indices = tree.query(no_attr_points)
+                for i, nearest_idx in enumerate(nearest_indices):
+                    nid[no_attr_indices[i]] = has_attr_nid[nearest_idx]
+
+        # 关闭 Gmsh
+        pygmsh.finalize()
+
+        print("\033[1;36m[ Info:\033[0m physical groups are attached to particles")
+
+        t3_end = pytime.perf_counter()
+
+        #===================================================================================
+        #===================================================================================
+        #===================================================================================
+
+        t4_start = pytime.perf_counter()
+        nid = np.repeat(nid, 4)
+        offset = h * 0.25
+        offsets = np.array([[-offset,  offset],
+                            [ offset,  offset],
+                            [-offset, -offset],
+                            [ offset, -offset]])
+        pts = np.repeat(inside_points, 4, axis=0) + np.tile(offsets, (len(inside_points), 1))
+        pts_num = len(pts)
+
+        print(f"\033[1;36m[ Info:\033[0m filled with {pts_num} particles")
+
+        t4_end = pytime.perf_counter()
+
+        #===================================================================================
+        #===================================================================================
+        #===================================================================================
+
+        t5_start = pytime.perf_counter()
+        np.savetxt(output_file, pts, fmt='%.6f', delimiter=' ')
+        np.savetxt(nid_file, nid, fmt='%s', delimiter='\\n')
+        t5_end = pytime.perf_counter()
+
+        #===================================================================================
+        #===================================================================================
+        #===================================================================================
+
+        t1 = t1_end - t1_start
+        t2 = t2_end - t2_start
+        t3 = t3_end - t3_start
+        t4 = t4_end - t4_start
+        t5 = t5_end - t5_start
+        t6 = t1 + t2 + t3 + t4 + t5
+
+        return [t1, t2, t3, t4, t5, t6]
+    """ => py_trimesh_voxelize2d_msh
+
+    pytp = py_trimesh_voxelize2d_msh(stl_file, msh_file, output_file, nid_file, h, 
+        trimesh, np, MultiPolygon, Polygon, Point, mapping, unary_union, rasterio, 
+        rasterize, pygmsh, pyKDTree, pytime)
+
+    tp = pyconvert(Vector, pytp)
+
     if verbose
-        t1, t2, t3 = tp[1], tp[2], tp[3]
-        tt = sum(tp) + t4
-        @info """voxelization with trimesh (Gmsh Physical Group)
+        t1, t2, t3, t4, t5, tt = tp[1], tp[2], tp[3], tp[4], tp[5], tp[6]
+        @info """2D polygon
         - load model    : $(@sprintf("%6.2f", t1)) s | $(@sprintf("%6.2f", 100*t1/tt))%
-        - voxelize      : $(@sprintf("%6.2f", t2)) s | $(@sprintf("%6.2f", 100*t2/tt))%
-        - fill voxels   : $(@sprintf("%6.2f", t3)) s | $(@sprintf("%6.2f", 100*t3/tt))%
-        - write .xy .nid: $(@sprintf("%6.2f", t4)) s | $(@sprintf("%6.2f", 100*t4/tt))%
+        - rasterize     : $(@sprintf("%6.2f", t2)) s | $(@sprintf("%6.2f", 100*t2/tt))%
+        - attach nid    : $(@sprintf("%6.2f", t3)) s | $(@sprintf("%6.2f", 100*t3/tt))%
+        - fill particle : $(@sprintf("%6.2f", t4)) s | $(@sprintf("%6.2f", 100*t4/tt))%
+        - write .xy .nid: $(@sprintf("%6.2f", t5)) s | $(@sprintf("%6.2f", 100*t5/tt))%
         $("-"^36)
         - total time    : $(@sprintf("%6.2f", tt)) s
         """
     end
     return nothing
-end
-
-function trimesh_voxelize2D(stl_file::String, msh_file::String, h)
-    h > 0 || throw(ArgumentError("h must be positive"))
-
-    t1 = @elapsed begin
-        mesh = trimesh[].load(stl_file, process=true)
-        meshio_mesh = meshio[].read(msh_file)
-        physical_group_map = pybuiltins.dict()
-        for (name, data) in meshio_mesh.field_data.items() # extract physical group ID & Name
-            physical_group_map[np[].int64(data[0])] = name # physical Group ID -> Group Name
-        end
-        triangle_faces = pybuiltins.list()
-        triangle_physical_ids = pybuiltins.list()
-        for (cell_type, cell_data) in zip(meshio_mesh.cells, meshio_mesh.cell_data["gmsh:physical"])
-            if pyconvert(String, cell_type.type) == "triangle"
-                triangle_faces.extend(cell_type.data)
-                triangle_physical_ids.extend(cell_data)
-            end
-        end
-        triangle_faces = np[].array(triangle_faces)
-        triangle_physical_ids = np[].array(triangle_physical_ids)
-        # check .msh == .stl 
-        if length(mesh.vertices) ≠ length(meshio_mesh.points) || 
-           length(mesh.faces)    ≠ length(triangle_faces)
-            error("mismatch between .stl and .msh file geometries")
-        end
-        z_values = mesh.vertices[pyslice(0, nothing), 2]
-        has_non_zero_z = np[].any(z_values != 0)
-        if pyconvert(Bool, pybuiltins.bool(has_non_zero_z)) 
-            error("STL model must be in 2D space, but found non-zero Z values")
-        end
-        @info "STL model and Physical group loaded"
-    end
-
-    t2 = @elapsed begin
-        voxelized = voxelize(mesh, h)
-        offset = h * 0.25
-        voxelized_filled = voxelized.fill()
-        points = voxelized_filled.points
-        tmp1, tmp2, triangle_ids = mesh.nearest.on_surface(points)
-        voxel_to_group = np[].full(length(points), pybuiltins.None, dtype=pybuiltins.object)
-        for (i, triangle_id) in enumerate(triangle_ids)
-            if pyconvert(Int, triangle_id) ≥ 0  # 检查 triangle_id 是否有效
-                physical_id = triangle_physical_ids[triangle_id]  # 获取对应的 Physical ID
-                voxel_to_group[i-1] = physical_group_map.get(physical_id, pybuiltins.None)  # 映射到 Physical Group Name
-            end
-        end
-        nid = np[].repeat(voxel_to_group, 4)
-        pts_center = points[pyslice(0, nothing), pyslice(0, 2)]
-        @info "voxelized with trimesh"
-    end
-
-    t3 = @elapsed begin
-        offsets = np[].array([[-offset,  offset], [ offset,  offset],
-                              [-offset, -offset], [ offset, -offset]])
-        # pts = np[].vstack([pts_center + offset for offset in offsets])
-        pts = np[].empty((4 * length(pts_center), 2))  # 初始化新数组，大小为原数组的4倍
-        for (i, (x, y)) in enumerate(pts_center)
-            idx = (i - 1) * 4
-            pts[idx+0][0], pts[idx+0][1] = x - offset, y + offset
-            pts[idx+1][0], pts[idx+1][1] = x + offset, y + offset
-            pts[idx+2][0], pts[idx+2][1] = x - offset, y - offset
-            pts[idx+3][0], pts[idx+3][1] = x + offset, y - offset
-        end    
-        pts_num = pyconvert(Int, pts.shape[0])
-        @info "filled with $(pts_num) particles"
-    end
-    return pts, nid, [t1, t2, t3]
-end
-
-function trimesh_voxelize2D(stl_file::String, h)
-    h > 0 || throw(ArgumentError("h must be positive"))
-    
-    t1 = @elapsed begin
-        mesh = trimesh[].load(stl_file, process=true)
-        z_values = mesh.vertices[pyslice(0, nothing), 2]
-        has_non_zero_z = np[].any(z_values != 0)
-        if pyconvert(Bool, pybuiltins.bool(has_non_zero_z)) 
-            error("STL model must be in 2D space, but found non-zero Z values")
-        end
-        @info "STL model loaded"
-    end
-
-    t2 = @elapsed begin
-        voxelized = voxelize(mesh, h)
-        offset = h * 0.25
-        voxelized_filled = voxelized.fill()
-        points = voxelized_filled.points
-        pts_center = points[pyslice(0, nothing), pyslice(0, 2)]
-        @info "voxelized with trimesh"
-    end
-
-    t3 = @elapsed begin
-        offsets = np[].array([[-offset,  offset], [ offset,  offset],
-                              [-offset, -offset], [ offset, -offset]])
-        pts = np[].vstack([pts_center + offset for offset in offsets])
-        pts_num = pyconvert(Int, pts.shape[0])
-        @info "filled with $(pts_num) particles"
-    end
-    return pts, [t1, t2, t3]
 end

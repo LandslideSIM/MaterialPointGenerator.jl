@@ -1,6 +1,13 @@
+channels = ["anaconda", "conda-forge"]
+
 [deps]
-meshio = ""
-rtree = ""
-numpy = ""
-scipy = ""
-trimesh = ""
+networkx = "==3.4.2"
+scipy = "==1.15.2"
+numpy = "==2.2.4"
+rtree = "==1.4.0"
+python-gmsh = "==4.13.1"
+trimesh = "==4.6.6"
+shapely = "==2.0.7"
+
+[pip.deps]
+rasterio = "==1.4.1"

@@ -20,7 +20,8 @@ julia> ]
 - Structured (regular) coordinates
 - Support complicated 2/3D models
 - Particle generation from a Digital Elevation Model (DEM) file  
-- Automatically interpolate DEM files with support for shape trimming.
+- Automatically interpolate DEM files with support for shape trimming
+- Attach attributions to the particles
 
 ## Acknowledgement
 
