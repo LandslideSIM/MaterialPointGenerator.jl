@@ -41,7 +41,7 @@ function __init__()
     PythonCall.pycopy!(mapping     , pyimport("shapely.geometry" ).mapping     )
     PythonCall.pycopy!(unary_union , pyimport("shapely.ops"      ).unary_union )
     PythonCall.pycopy!(rasterize   , pyimport("rasterio.features").rasterize   )
-    PythonCall.pycopy!(pyKDTree    , pyimport("scipy.spatial"    ).cKDTree      )
+    PythonCall.pycopy!(pyKDTree    , pyimport("scipy.spatial"    ).cKDTree     )
     PythonCall.pycopy!(MultiPolygon, pyimport("shapely.geometry" ).MultiPolygon)
     if !Sys.isapple()
         try 
