@@ -9,10 +9,12 @@
 |  Functions  : 01. IDW!                                                                   |
 |               02. rasterizeDEM                                                           |
 |               03. dem2particle                                                           |
+|               04. getpolygon                                                             |
 +==========================================================================================#
 
 export dem2particle
 export rasterizeDEM
+export getpolygon
 
 include(joinpath(@__DIR__, "_dem/_utils.jl"))
 
@@ -121,6 +123,54 @@ boundary of the particles, `dembounds` is the boundary of the DEM.
     @. ptslist[:, 3] = ceil(ptslist[:, 3] / h) * h
     
     return ptslist
+end
+
+@views function rasterizeDEM(
+    dem    ::Matrix{T2},
+    h      ::T2,
+    polygon::Py; 
+    k      ::T1 = 10, 
+    p      ::T1 = 2
+) where {T1, T2}
+    # check input arguments
+    size(dem, 2) ≠ 3 && throw(ArgumentError("DEM should have three columns: x, y, z"))
+    h > 0 || throw(ArgumentError("h must be positive"))
+
+    # get particles from DEM domain
+    dem_xmin, dem_xmax = minimum(dem[:, 1]), maximum(dem[:, 1])
+    dem_ymin, dem_ymax = minimum(dem[:, 2]), maximum(dem[:, 2])
+
+    # trim the boundary based on the polygon
+    ξ0 = meshbuilder(dem_xmin : h : dem_xmax, dem_ymin : h : dem_ymax)
+    x_test = np.array(ξ0[:, 1])
+    y_test = np.array(ξ0[:, 2])
+    v_in_id = pyconvert(Vector, v_contains(polygon, x_test, y_test))
+    ptslist = hcat(ξ0[v_in_id, :], zeros(T2, count(v_in_id)))
+
+    # create KDTree for DEM
+    tree = KDTree(dem[:, 1:2]')
+    idxs = zeros(T1, size(ptslist, 1), k)
+    IDW!(k, p, dem, idxs, ptslist, tree)
+
+    # move the models to the grid (space = h)
+    @. ptslist[:, 3] = ceil(ptslist[:, 3] / h) * h
+    
+    return ptslist
+end
+
+function getpolygon(pts::Matrix)
+    points = size(pts, 2) == 3 ? np.array(pts[:, 1:2]) : np.array(pts)
+
+    @pyexec """
+    def get_polygon(points, ConvexHull, Polygon):
+        hull = ConvexHull(points)
+        hull_points = points[hull.vertices]
+        polygon = Polygon(hull_points)
+        return polygon
+    """ => get_polygon
+
+    polygon = get_polygon(points, ConvexHull, Polygon)
+    return polygon
 end
 
 """
