@@ -11,4 +11,3 @@ shapely = "==2.0.7"
 
 [pip.deps]
 rasterio = "==1.4.1"
-open3d = "==0.18.0"
