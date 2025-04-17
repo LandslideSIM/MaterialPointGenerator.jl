@@ -12,6 +12,8 @@
 module MaterialPointGenerator
 
 using DelimitedFiles, CondaPkg, Gmsh, NearestNeighbors, Printf, PythonCall
+using LinearAlgebra: mul!, eigen, Symmetric, normalize
+using Statistics: mean
 
 const trimesh      = PythonCall.pynew()
 const np           = PythonCall.pynew()

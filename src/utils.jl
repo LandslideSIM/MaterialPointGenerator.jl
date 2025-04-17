@@ -19,6 +19,7 @@
 |               11. sort_pts_xy                                                            |
 |               12. populate_pts                                                           |
 |               13. stl2geo                                                                |
+|               14. getnormals                                                             |
 +==========================================================================================#
 
 export savexy
@@ -32,6 +33,7 @@ export sort_pts
 export sort_pts_xy
 export populate_pts
 export stl2geo
+export getnormals
 
 """
     savedata(file_dir::String, data)
@@ -278,4 +280,55 @@ function stl2geo(stl_file::String, geo_file::String; lc::Real=1)
         println(f, "Volume(1) = {1};")
     end
     return nothing
+end
+
+"""
+    getnormals(points::Matrix{<:Real}; k::Int=10)
+
+Description:
+---
+Compute the external normals of the points using the k-nearest method.
+
+ - The input points should be a `N×3` array.
+ - The output normals will be a `N×3` array.
+"""
+@views function getnormals(points::Matrix{<:Real}; k::Int=10)
+    # check input points
+    n, pts_dim = size(points)
+    pts_dim == 3 || error("Points data must be a N×3 array")
+    n > 10 || error("The input must have more than 10 points")
+    (typeof(k) == Int && k > 0) || error("k must be a positive integer")
+    
+    # create KDTree for nearest neighbor search
+    tree = KDTree(points')
+    idxs, _ = knn(tree, points', k, true)
+    
+    # pre-allocate arrays
+    normals    = zeros(n, 3)
+    neighbors  = zeros(k, 3)
+    centered   = zeros(k, 3)
+    cov_matrix = zeros(3, 3)
+    
+    # compute unit external normal vector
+    @inbounds for i in axes(points, 1)
+        # find k nearest neighbors
+        neighbors .= points[idxs[i], :]
+        # compute centroid
+        centroid = mean(neighbors, dims=1)
+        centered .= neighbors .- centroid
+        # calculate the covariance matrix (more efficient)
+        mul!(cov_matrix, centered', centered)
+        cov_matrix ./= k
+        # eigenvalue decomposition
+        eigvals, eigvecs = eigen(Symmetric(cov_matrix))  # 使用 Symmetric 优化
+        # get normal vector
+        min_idx = argmin(eigvals)
+        normal = eigvecs[:, min_idx]
+        # make sure it is outward facing
+        normal[3] < 0 ? (normal = -normal) : nothing
+        # save the result
+        normals[i, :] .= normalize(normal)
+    end
+    
+    return normals
 end
