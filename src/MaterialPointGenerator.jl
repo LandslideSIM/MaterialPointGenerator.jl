@@ -17,6 +17,7 @@ using Statistics: mean
 
 const trimesh      = PythonCall.pynew()
 const np           = PythonCall.pynew()
+const o3d          = PythonCall.pynew()
 const MultiPolygon = PythonCall.pynew()
 const Polygon      = PythonCall.pynew()
 const Point        = PythonCall.pynew()
@@ -36,6 +37,7 @@ function __init__()
     # import Python modules
     PythonCall.pycopy!(trimesh , pyimport("trimesh" ))
     PythonCall.pycopy!(np      , pyimport("numpy"   ))
+    PythonCall.pycopy!(o3d     , pyimport("open3d"  ))
     PythonCall.pycopy!(rasterio, pyimport("rasterio"))
     PythonCall.pycopy!(pygmsh  , pyimport("gmsh"    ))
     PythonCall.pycopy!(pytime  , pyimport("time"    ))
