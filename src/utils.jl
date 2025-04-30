@@ -34,6 +34,7 @@ export sort_pts_xy
 export populate_pts
 export stl2geo
 export getnormals
+export getoffset
 
 """
     savedata(file_dir::String, data)
@@ -320,4 +321,49 @@ function getnormals(points::Matrix{T}; k=8) where T <: Real
     normals = PythonCall.pyconvert(Array, py_normal)
 
     return Array{T}(normals)
+end
+
+"""
+    getoffset(grid::DeviceGrid3D, pts::Matrix)
+
+Description:
+---
+Compute the offset to align the points with the MPM grid.
+
+2D output: [offset_x, offset_y]
+3D output: [offset_x, offset_y, offset_z]
+"""
+@views function getoffset(grid::DeviceGrid3D, pts::Matrix)
+    size(pts, 2) ≠ 3 && error("The input points should be a Nx3 matrix (3D)")
+
+    pts_min = minimum(pts, dims=1)
+    offset  = zeros(3)
+
+    vid = findall(pts_min[1] .- grid.ξ[:, 1] .≥ 0)
+    _, id1 = findmin(pts_min[1] .- grid.ξ[vid, 1])
+    vid = findall(pts_min[2] .- grid.ξ[:, 2] .≥ 0)
+    _, id2 = findmin(pts_min[2] .- grid.ξ[vid, 2])
+    vid = findall(pts_min[3] .- grid.ξ[:, 3] .≥ 0)
+    _, id3 = findmin(pts_min[3] .- grid.ξ[vid, 3])
+
+    offset[1] = pts_min[1] - grid.ξ[id1, 1] + grid.dx * 0.25
+    offset[2] = pts_min[2] - grid.ξ[id2, 2] + grid.dy * 0.25
+    offset[3] = pts_min[3] - grid.ξ[id3, 3] + grid.dz * 0.25
+    return offset
+end
+
+@views function getoffset(grid::DeviceGrid2D, pts::Matrix)
+    size(pts, 2) ≠ 2 && error("The input points should be a Nx2 matrix (2D)")
+
+    pts_min = minimum(pts, dims=1)
+    offset  = zeros(2)
+
+    vid = findall(pts_min[1] .- grid.ξ[:, 1] .≥ 0)
+    _, id1 = findmin(pts_min[1] .- grid.ξ[vid, 1])
+    vid = findall(pts_min[2] .- grid.ξ[:, 2] .≥ 0)
+    _, id2 = findmin(pts_min[2] .- grid.ξ[vid, 2])
+
+    offset[1] = pts_min[1] - grid.ξ[id1, 1] + grid.dx * 0.25
+    offset[2] = pts_min[2] - grid.ξ[id2, 2] + grid.dy * 0.25
+    return offset
 end
