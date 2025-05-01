@@ -283,7 +283,7 @@ function stl2geo(stl_file::String, geo_file::String; lc::Real=1)
 end
 
 """
-    getnormals(points::Matrix{<:Real}; k::Int=8)
+    getnormals(points::AbstractArray{T, 2}; k::Int=8)
 
 Description:
 ---
@@ -292,7 +292,7 @@ Compute the external normals of the points using the k-nearest method.
  - The input points should be a `N×3` array.
  - The output normals will be a `N×3` array.
 """
-function getnormals(points::Matrix{T}; k=8) where T <: Real
+function getnormals(points::AbstractArray{T, 2}; k=8) where T <: Real
     size(points, 2) ≠ 3 && error("point set must be a Nx3 matrix")
     py_points = np.array(points)
 
