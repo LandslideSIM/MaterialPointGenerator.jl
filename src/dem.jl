@@ -126,12 +126,13 @@ boundary of the particles, `dembounds` is the boundary of the DEM.
 end
 
 @views function rasterizeDEM(
-    dem    ::Matrix{T2},
+    dem    ::AbstractMatrix{T2},
     h      ::T2,
-    polygon::Py; 
-    k      ::T1 = 10, 
-    p      ::T1 = 2
-) where {T1, T2}
+    polygon::AbstractMatrix{T2}; 
+    k      ::Int = 10, 
+    p      ::Int = 2
+) where T2
+    pypolygon = Polygon(polygon)
     # check input arguments
     size(dem, 2) ≠ 3 && throw(ArgumentError("DEM should have three columns: x, y, z"))
     h > 0 || throw(ArgumentError("h must be positive"))
@@ -144,12 +145,12 @@ end
     ξ0 = meshbuilder(dem_xmin : h : dem_xmax, dem_ymin : h : dem_ymax)
     x_test = np.array(ξ0[:, 1])
     y_test = np.array(ξ0[:, 2])
-    v_in_id = pyconvert(Vector, v_contains(polygon, x_test, y_test))
+    v_in_id = pyconvert(Vector, v_contains(pypolygon, x_test, y_test))
     ptslist = hcat(ξ0[v_in_id, :], zeros(T2, count(v_in_id)))
 
     # create KDTree for DEM
     tree = KDTree(dem[:, 1:2]')
-    idxs = zeros(T1, size(ptslist, 1), k)
+    idxs = zeros(Int, size(ptslist, 1), k)
     IDW!(k, p, dem, idxs, ptslist, tree)
 
     # move the models to the grid (space = h)
@@ -158,19 +159,27 @@ end
     return ptslist
 end
 
-function getpolygon(pts::Matrix)
-    points = size(pts, 2) == 3 ? np.array(pts[:, 1:2]) : np.array(pts)
+function getpolygon(pts::AbstractMatrix; ratio=0.1)
+    pts_col = size(pts, 2)
+    if pts_col == 2
+        points = np.array(pts)
+    elseif pts_col == 3
+        points = np.array(pts[:, 1:2])
+    else
+        throw(ArgumentError("points must be a Nx2 or Nx3 array"))
+    end
 
-    @pyexec """
-    def get_polygon(points, ConvexHull, Polygon):
-        hull = ConvexHull(points)
-        hull_points = points[hull.vertices]
-        polygon = Polygon(hull_points)
-        return polygon
-    """ => get_polygon
+    # @pyexec """
+    # def get_polygon(points, ConvexHull, Polygon):
+    #     hull = ConvexHull(points)
+    #     hull_points = points[hull.vertices]
+    #     polygon = Polygon(hull_points)
+    #     return polygon
+    # """ => get_polygon
+    # polygon = get_polygon(points, ConvexHull, Polygon)
 
-    polygon = get_polygon(points, ConvexHull, Polygon)
-    return polygon
+    point_polygon = concavehull(points, ratio, false)
+    return point_polygon
 end
 
 """
