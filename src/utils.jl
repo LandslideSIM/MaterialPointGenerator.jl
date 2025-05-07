@@ -157,13 +157,13 @@ function csv2geo2d(csv_file::String, geo_file::String)
 end
 
 """
-    sort_pts(pts::Matrix)
+    sort_pts(pts::AbstractMatrix)
 
 Description:
 ---
 Sort the points in pts by the (z-), y-, and x-coordinates, in that order (2/3D).
 """
-function sort_pts(pts::Matrix)
+function sort_pts(pts::AbstractMatrix)
     if size(pts, 2) == 2
         idx = sortperm(eachrow(pts), by=row -> (row[2], row[1]))
     elseif size(pts, 2) == 3
@@ -182,7 +182,7 @@ Description:
 ---
 Sort the points in pts by the x- and y-coordinates, in that order.
 """
-function sort_pts_xy(pts::Matrix)
+function sort_pts_xy(pts::AbstractMatrix)
     idx = sortperm(eachrow(pts), by=row -> (row[1], row[2]))
     return pts[idx, :]
 end
