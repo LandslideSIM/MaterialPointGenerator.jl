@@ -16,6 +16,9 @@ using LinearAlgebra: mul!, eigen, Symmetric, normalize
 using Statistics: mean
 using GMT: concavehull
 using LiveServer: serve
+using PrecompileTools: @setup_workload, @compile_workload
+
+import LinearAlgebra.LAPACK: syev!
 
 const trimesh      = PythonCall.pynew()
 const np           = PythonCall.pynew()
@@ -39,12 +42,11 @@ const v_contains   = PythonCall.pynew()
 function __init__()
     @info "checking environment..."
     # import Python modules
-    PythonCall.pycopy!(trimesh , pyimport("trimesh"   ))
-    PythonCall.pycopy!(np      , pyimport("numpy"     ))
-    PythonCall.pycopy!(o3d     , pyimport("open3d"    ))
-    PythonCall.pycopy!(rasterio, pyimport("rasterio"  ))
-    PythonCall.pycopy!(pygmsh  , pyimport("gmsh"      ))
-    PythonCall.pycopy!(pytime  , pyimport("time"      ))
+    PythonCall.pycopy!(trimesh , pyimport("trimesh" ))
+    PythonCall.pycopy!(np      , pyimport("numpy"   ))
+    PythonCall.pycopy!(rasterio, pyimport("rasterio"))
+    PythonCall.pycopy!(pygmsh  , pyimport("gmsh"    ))
+    PythonCall.pycopy!(pytime  , pyimport("time"    ))
     # import their submudules
     PythonCall.pycopy!(Polygon     , pyimport("shapely.geometry"  ).Polygon     )
     PythonCall.pycopy!(LineString  , pyimport("shapely.geometry"  ).LineString  )
@@ -86,5 +88,13 @@ include(joinpath(@__DIR__, "dem.jl"          ))
 include(joinpath(@__DIR__, "slbl/slbl.jl"    ))
 include(joinpath(@__DIR__, "slbl/slbl_gui.jl"))
 include(joinpath(@__DIR__, "utils.jl"        ))
+
+@setup_workload begin
+    points = rand(20, 3)
+    @compile_workload begin
+        # functions in utils.jl
+        getnormals(points)
+    end
+end
 
 end

@@ -283,7 +283,7 @@ function stl2geo(stl_file::String, geo_file::String; lc::Real=1)
 end
 
 """
-    getnormals(points::AbstractArray{T, 2}; k::Int=8)
+    getnormals(points::AbstractMatrix{T}; k::Integer=10)
 
 Description:
 ---
@@ -292,32 +292,68 @@ Compute the external normals of the points using the k-nearest method.
  - The input points should be a `N×3` array.
  - The output normals will be a `N×3` array.
 """
-function getnormals(points::AbstractArray{T, 2}; k=8) where T <: Real
-    size(points, 2) ≠ 3 && error("point set must be a Nx3 matrix")
-    py_points = np.array(points)
+@views function getnormals(points::AbstractMatrix{T}; k::Integer=10) where {T<:Real}
+    @assert size(points, 2) == 3 "Input must be N×3 – one point per row"
+    @assert size(points, 1) > k "Need at least $(k+1) points to compute normals"
+    npts = size(points, 1)
+    tree = KDTree(points')
+    invk = inv(T(k)) # pre‑compute 1/k as T
+    normals = Array{T}(undef, npts, 3)
 
-    @pyexec"""
-    def py_get_normals(o3d, np, points, k):
-        # create point cloud
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(points)
+    # ------------------------------------------------------------------
+    # Thread‑local scratch buffers (avoid allocs & false sharing)
+    # ------------------------------------------------------------------
+    nt    = Threads.nthreads()
+    idxs  = [Vector{Int}(undef, k)  for _ in 1:nt]
+    dists = [Vector{T}(undef, k)    for _ in 1:nt]
+    neigh = [Matrix{T}(undef, k, 3) for _ in 1:nt]
+    Σbuf  = [Matrix{T}(undef, 3, 3) for _ in 1:nt]
 
-        # estimate the normals
-        #start = time.time()
-        pcd.estimate_normals(
-            search_param=o3d.geometry.KDTreeSearchParamKNN(knn=k)
-        )
-        normals = np.asarray(pcd.normals)
+    @inbounds Threads.@threads for i in axes(points, 1)
+        tid = Threads.threadid()
+        idx = idxs[tid]; dst = dists[tid]
+        Σ   = Σbuf[tid]; nb  = neigh[tid]
 
-        # make sure the normals external
-        normals[normals[:, 2] < 0] *= -1
+        # 1) k‑NN indices (zero alloc)
+        knn!(idx, dst, tree, points[i, :], k)
 
-        return normals
-    """ => py_get_normals
+        # 2) Copy neighbours + centroid accum
+        μx = zero(T); μy = zero(T); μz = zero(T)
+        for j in 1:k
+            p1, p2, p3 = points[idx[j], 1], points[idx[j], 2], points[idx[j], 3]
+            nb[j, 1] = p1; nb[j, 2] = p2; nb[j, 3] = p3
+            μx += p1; μy += p2; μz += p3
+        end
+        μx *= invk; μy *= invk; μz *= invk
 
-    py_normal = py_get_normals(o3d, np, py_points, k)
+        # 3) Covariance components (explicit loop → no temp matrices)
+        s11 = zero(T); s12 = zero(T); s13 = zero(T)
+        s22 = zero(T); s23 = zero(T); s33 = zero(T)
+        for j in 1:k
+            dx, dy, dz = nb[j, 1] - μx, nb[j, 2] - μy, nb[j, 3] - μz
+            s11 += dx*dx; s12 += dx*dy; s13 += dx*dz
+            s22 += dy*dy; s23 += dy*dz; s33 += dz*dz
+        end
+        s11 *= invk; s12 *= invk; s13 *= invk
+        s22 *= invk; s23 *= invk; s33 *= invk
 
-    normals = PythonCall.pyconvert(Array, py_normal)
+        Σ[1,1] = s11;  Σ[1,2] = s12;  Σ[1,3] = s13
+        Σ[2,1] = s12;  Σ[2,2] = s22;  Σ[2,3] = s23
+        Σ[3,1] = s13;  Σ[3,2] = s23;  Σ[3,3] = s33
 
-    return Array{T}(normals)
+        # 4) Smallest‑eigenvector via in‑place LAPACK.syev!
+        # Returned eigenvalues vector is ignored (no extra alloc when PTA)
+        syev!('V', 'U', Σ)
+        # After syev!, Σ contains eigenvectors column‑wise sorted ↑ λ
+        n1, n2, n3 = Σ[1, 1], Σ[2, 1], Σ[3, 1] # smallest λ column
+
+        # 5) Flip toward +z and normalise
+        if n3 < 0; n1 = -n1; n2 = -n2; n3 = -n3; end
+        invlen = inv(sqrt(n1*n1 + n2*n2 + n3*n3))
+        normals[i, 1] = n1 * invlen
+        normals[i, 2] = n2 * invlen
+        normals[i, 3] = n3 * invlen
+    end
+
+    return normals
 end
