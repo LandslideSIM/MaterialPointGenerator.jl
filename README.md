@@ -30,6 +30,7 @@ julia> ]
 - [x] Particle generation from a Digital Elevation Model (DEM) file  
 - [x] Automatically interpolate DEM files with support for shape trimming
 - [x] Attach attributions to the particles
+- [x] SLBL and boundary selector interface
 
 ## Showcases 🎲
 
@@ -44,6 +45,10 @@ julia> ]
 | 3D DEM with material ID | Profile|
 |:--------:|:---:|
 | <img src="docs/src/example/image9.png" width="300"> | <img src="docs/src/example/image10.png" width="360"> |
+
+| SLBL |
+|:----:|
+| <img src="docs/src/assets/showcase/slbl_gui.png" width="660"> |
 
 ## Acknowledgement 👍
 
