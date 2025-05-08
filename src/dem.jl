@@ -31,9 +31,9 @@ Array of the particles, `tree` is the KDTree of the DEM.
 @views function IDW!(
     k      ::T1, 
     p      ::T1, 
-    dem    ::Matrix{T2}, 
-    idxs   ::Matrix{T1}, 
-    ptslist::Matrix{T2}, 
+    dem    ::AbstractMatrix{T2}, 
+    idxs   ::AbstractMatrix{T1}, 
+    ptslist::AbstractMatrix{T2}, 
     tree   ::KDTree
 ) where {T1, T2}
     @inbounds Threads.@threads for i in axes(ptslist, 1)
@@ -75,12 +75,12 @@ neighbors (10 by default), `p` is the power parameter (2 by default), `trimbound
 boundary of the particles, `dembounds` is the boundary of the DEM.
 """
 @views function rasterizeDEM(
-    dem       ::Matrix{T2},
+    dem       ::AbstractMatrix{T2},
     h         ::T2; 
     k         ::T1        = 10, 
     p         ::T1        = 2, 
-    trimbounds::Matrix{T2}= [0.0 0.0], 
-    dembounds ::Vector{T2}= [0.0, 0.0]
+    trimbounds::AbstractMatrix{T2}= [0.0 0.0], 
+    dembounds ::AbstractVector{T2}= [0.0, 0.0]
 ) where {T1, T2}
     # check input arguments
     size(dem, 2) ≠ 3 && throw(ArgumentError("DEM should have three columns: x, y, z"))
@@ -122,16 +122,17 @@ boundary of the particles, `dembounds` is the boundary of the DEM.
     # move the models to the grid (space = h)
     @. ptslist[:, 3] = ceil(ptslist[:, 3] / h) * h
     
-    return ptslist
+    return sort_pts_xy(ptslist)
 end
 
 @views function rasterizeDEM(
-    dem    ::Matrix{T2},
+    dem    ::AbstractMatrix{T2},
     h      ::T2,
-    polygon::Py; 
-    k      ::T1 = 10, 
-    p      ::T1 = 2
-) where {T1, T2}
+    polygon::AbstractMatrix{T2}; 
+    k      ::Int = 10, 
+    p      ::Int = 2
+) where T2
+    pypolygon = Polygon(np.array(polygon))
     # check input arguments
     size(dem, 2) ≠ 3 && throw(ArgumentError("DEM should have three columns: x, y, z"))
     h > 0 || throw(ArgumentError("h must be positive"))
@@ -144,12 +145,12 @@ end
     ξ0 = meshbuilder(dem_xmin : h : dem_xmax, dem_ymin : h : dem_ymax)
     x_test = np.array(ξ0[:, 1])
     y_test = np.array(ξ0[:, 2])
-    v_in_id = pyconvert(Vector, v_contains(polygon, x_test, y_test))
+    v_in_id = pyconvert(Vector, v_contains(pypolygon, x_test, y_test))
     ptslist = hcat(ξ0[v_in_id, :], zeros(T2, count(v_in_id)))
 
     # create KDTree for DEM
     tree = KDTree(dem[:, 1:2]')
-    idxs = zeros(T1, size(ptslist, 1), k)
+    idxs = zeros(Int, size(ptslist, 1), k)
     IDW!(k, p, dem, idxs, ptslist, tree)
 
     # move the models to the grid (space = h)
@@ -158,19 +159,17 @@ end
     return ptslist
 end
 
-function getpolygon(pts::Matrix)
-    points = size(pts, 2) == 3 ? np.array(pts[:, 1:2]) : np.array(pts)
-
-    @pyexec """
-    def get_polygon(points, ConvexHull, Polygon):
-        hull = ConvexHull(points)
-        hull_points = points[hull.vertices]
-        polygon = Polygon(hull_points)
-        return polygon
-    """ => get_polygon
-
-    polygon = get_polygon(points, ConvexHull, Polygon)
-    return polygon
+function getpolygon(pts::AbstractMatrix; ratio=0.1)
+    pts_col = size(pts, 2)
+    if pts_col == 2
+        points = pts
+    elseif pts_col == 3
+        points = pts[:, 1:2]
+    else
+        throw(ArgumentError("points must be a Nx2 or Nx3 array"))
+    end
+    point_polygon = concavehull(points, ratio, false)
+    return point_polygon.data
 end
 
 """
@@ -183,7 +182,7 @@ Generate particles from a given DEM file. `dem` is a coordinates Array with thre
 size in the MPM simulation. `bottom` is a value, which means the plane `z = bottom`.
 """
 @views function dem2particle(
-    dem   ::Matrix{T2}, 
+    dem   ::AbstractMatrix{T2}, 
     h     ::T2, 
     bottom::T2
 ) where T2
@@ -236,10 +235,10 @@ than the dem. `h` is the space of grid size in `z` direction used in the MPM sim
 surfaces. Note that layers are sorted from top to bottom.
 """
 @views function dem2particle(
-    dem   ::Matrix{T2}, 
+    dem   ::AbstractMatrix{T2}, 
     h     ::T2, 
     bottom::T2,
-    layer ::Vector{Matrix{T2}}
+    layer ::AbstractVector{AbstractMatrix{T2}}
 ) where T2
     # values check
     T1 = T2 == Float32 ? Int32 : Int64
@@ -341,9 +340,9 @@ Array with three columns (x, y, z), which has to be initialized with the struct 
 than the dem. `h` is the space of grid size in `z` direction used in the MPM simulation.
 """
 @views function dem2particle(
-    dem   ::Matrix{T2}, 
+    dem   ::AbstractMatrix{T2}, 
     h     ::T2, 
-    bottom::Matrix{T2}
+    bottom::AbstractMatrix{T2}
 ) where T2
     # values check
     T1 = T2 == Float32 ? Int32 : Int64
@@ -401,9 +400,9 @@ Matrix with three columns (x, y, z), which represents the layer surfaces. Note t
 are sorted from top to bottom.
 """
 @views function dem2particle(
-    dem   ::Matrix{T2}, 
+    dem   ::AbstractMatrix{T2}, 
     h     ::T2, 
-    bottom::Matrix{T2},
+    bottom::AbstractMatrix{T2},
     layer ::Vector{Matrix{T2}}
 ) where T2
     # values check

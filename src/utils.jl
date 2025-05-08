@@ -19,6 +19,7 @@
 |               11. sort_pts_xy                                                            |
 |               12. populate_pts                                                           |
 |               13. stl2geo                                                                |
+|               14. getnormals                                                             |
 +==========================================================================================#
 
 export savexy
@@ -32,6 +33,7 @@ export sort_pts
 export sort_pts_xy
 export populate_pts
 export stl2geo
+export getnormals
 
 """
     savedata(file_dir::String, data)
@@ -155,13 +157,13 @@ function csv2geo2d(csv_file::String, geo_file::String)
 end
 
 """
-    sort_pts(pts::Matrix)
+    sort_pts(pts::AbstractMatrix)
 
 Description:
 ---
 Sort the points in pts by the (z-), y-, and x-coordinates, in that order (2/3D).
 """
-function sort_pts(pts::Matrix)
+function sort_pts(pts::AbstractMatrix)
     if size(pts, 2) == 2
         idx = sortperm(eachrow(pts), by=row -> (row[2], row[1]))
     elseif size(pts, 2) == 3
@@ -180,7 +182,7 @@ Description:
 ---
 Sort the points in pts by the x- and y-coordinates, in that order.
 """
-function sort_pts_xy(pts::Matrix)
+function sort_pts_xy(pts::AbstractMatrix)
     idx = sortperm(eachrow(pts), by=row -> (row[1], row[2]))
     return pts[idx, :]
 end
@@ -278,4 +280,80 @@ function stl2geo(stl_file::String, geo_file::String; lc::Real=1)
         println(f, "Volume(1) = {1};")
     end
     return nothing
+end
+
+"""
+    getnormals(points::AbstractMatrix{T}; k::Integer=10)
+
+Description:
+---
+Compute the external normals of the points using the k-nearest method.
+
+ - The input points should be a `N×3` array.
+ - The output normals will be a `N×3` array.
+"""
+@views function getnormals(points::AbstractMatrix{T}; k::Integer=10) where {T<:Real}
+    @assert size(points, 2) == 3 "Input must be N×3 – one point per row"
+    @assert size(points, 1) > k "Need at least $(k+1) points to compute normals"
+    npts = size(points, 1)
+    tree = KDTree(points')
+    invk = inv(T(k)) # pre‑compute 1/k as T
+    normals = Array{T}(undef, npts, 3)
+
+    # ------------------------------------------------------------------
+    # Thread‑local scratch buffers (avoid allocs & false sharing)
+    # ------------------------------------------------------------------
+    nt    = Threads.nthreads()
+    idxs  = [Vector{Int}(undef, k)  for _ in 1:nt]
+    dists = [Vector{T}(undef, k)    for _ in 1:nt]
+    neigh = [Matrix{T}(undef, k, 3) for _ in 1:nt]
+    Σbuf  = [Matrix{T}(undef, 3, 3) for _ in 1:nt]
+
+    @inbounds Threads.@threads for i in axes(points, 1)
+        tid = Threads.threadid()
+        idx = idxs[tid]; dst = dists[tid]
+        Σ   = Σbuf[tid]; nb  = neigh[tid]
+
+        # 1) k‑NN indices (zero alloc)
+        knn!(idx, dst, tree, points[i, :], k)
+
+        # 2) Copy neighbours + centroid accum
+        μx = zero(T); μy = zero(T); μz = zero(T)
+        for j in 1:k
+            p1, p2, p3 = points[idx[j], 1], points[idx[j], 2], points[idx[j], 3]
+            nb[j, 1] = p1; nb[j, 2] = p2; nb[j, 3] = p3
+            μx += p1; μy += p2; μz += p3
+        end
+        μx *= invk; μy *= invk; μz *= invk
+
+        # 3) Covariance components (explicit loop → no temp matrices)
+        s11 = zero(T); s12 = zero(T); s13 = zero(T)
+        s22 = zero(T); s23 = zero(T); s33 = zero(T)
+        for j in 1:k
+            dx, dy, dz = nb[j, 1] - μx, nb[j, 2] - μy, nb[j, 3] - μz
+            s11 += dx*dx; s12 += dx*dy; s13 += dx*dz
+            s22 += dy*dy; s23 += dy*dz; s33 += dz*dz
+        end
+        s11 *= invk; s12 *= invk; s13 *= invk
+        s22 *= invk; s23 *= invk; s33 *= invk
+
+        Σ[1,1] = s11;  Σ[1,2] = s12;  Σ[1,3] = s13
+        Σ[2,1] = s12;  Σ[2,2] = s22;  Σ[2,3] = s23
+        Σ[3,1] = s13;  Σ[3,2] = s23;  Σ[3,3] = s33
+
+        # 4) Smallest‑eigenvector via in‑place LAPACK.syev!
+        # Returned eigenvalues vector is ignored (no extra alloc when PTA)
+        syev!('V', 'U', Σ)
+        # After syev!, Σ contains eigenvectors column‑wise sorted ↑ λ
+        n1, n2, n3 = Σ[1, 1], Σ[2, 1], Σ[3, 1] # smallest λ column
+
+        # 5) Flip toward +z and normalise
+        if n3 < 0; n1 = -n1; n2 = -n2; n3 = -n3; end
+        invlen = inv(sqrt(n1*n1 + n2*n2 + n3*n3))
+        normals[i, 1] = n1 * invlen
+        normals[i, 2] = n2 * invlen
+        normals[i, 3] = n3 * invlen
+    end
+
+    return normals
 end

@@ -11,15 +11,25 @@
 
 module MaterialPointGenerator
 
-using DelimitedFiles, CondaPkg, Gmsh, NearestNeighbors, Printf, PythonCall
+using CondaPkg, DelimitedFiles, Gmsh, NearestNeighbors, Printf, PythonCall
+using LinearAlgebra: mul!, eigen, Symmetric, normalize
+using Statistics: mean
+using GMT: concavehull
+using LiveServer: serve
+using PrecompileTools: @setup_workload, @compile_workload
+
+import LinearAlgebra.LAPACK: syev!
 
 const trimesh      = PythonCall.pynew()
 const np           = PythonCall.pynew()
+const o3d          = PythonCall.pynew()
 const MultiPolygon = PythonCall.pynew()
 const Polygon      = PythonCall.pynew()
+const LineString   = PythonCall.pynew()
 const Point        = PythonCall.pynew()
 const mapping      = PythonCall.pynew()
 const unary_union  = PythonCall.pynew()
+const rotate       = PythonCall.pynew()
 const rasterio     = PythonCall.pynew()
 const rasterize    = PythonCall.pynew()
 const pygmsh       = PythonCall.pynew()
@@ -39,9 +49,11 @@ function __init__()
     PythonCall.pycopy!(pytime  , pyimport("time"    ))
     # import their submudules
     PythonCall.pycopy!(Polygon     , pyimport("shapely.geometry"  ).Polygon     )
+    PythonCall.pycopy!(LineString  , pyimport("shapely.geometry"  ).LineString  )
     PythonCall.pycopy!(Point       , pyimport("shapely.geometry"  ).Point       )
     PythonCall.pycopy!(mapping     , pyimport("shapely.geometry"  ).mapping     )
     PythonCall.pycopy!(unary_union , pyimport("shapely.ops"       ).unary_union )
+    PythonCall.pycopy!(rotate      , pyimport("shapely.affinity"  ).rotate      )
     PythonCall.pycopy!(rasterize   , pyimport("rasterio.features" ).rasterize   )
     PythonCall.pycopy!(pyKDTree    , pyimport("scipy.spatial"     ).cKDTree     )
     PythonCall.pycopy!(MultiPolygon, pyimport("shapely.geometry"  ).MultiPolygon)
@@ -73,6 +85,16 @@ include(joinpath(@__DIR__, "meshgenerator.jl"))
 include(joinpath(@__DIR__, "polygon.jl"      ))
 include(joinpath(@__DIR__, "polyhedron.jl"   ))
 include(joinpath(@__DIR__, "dem.jl"          ))
+include(joinpath(@__DIR__, "slbl/slbl.jl"    ))
+include(joinpath(@__DIR__, "slbl/slbl_gui.jl"))
 include(joinpath(@__DIR__, "utils.jl"        ))
+
+@setup_workload begin
+    points = rand(20, 3)
+    @compile_workload begin
+        # functions in utils.jl
+        getnormals(points)
+    end
+end
 
 end
