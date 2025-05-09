@@ -1,0 +1,602 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+    min-height: 100%;
+    background-color: #121212;
+    color: #f5f5f5;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    padding-bottom: 80px; /* 为footer预留空间 */
+}
+
+.main-content {
+    padding: 30px;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.container {
+    display: flex;
+    width: 100%;
+    height: calc(100vh - 150px); /* 减去footer的高度和padding */
+    background-color: #1e1e1e;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    margin: 0 auto;
+    max-width: 1400px;
+    overflow: hidden; /* 确保圆角正确显示 */
+}
+
+.button-panel {
+    width: 250px;
+    padding: 0;
+    background-color: #252525;
+    border-right: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* 移除滚动条，稍后在内容区域添加 */
+}
+
+.button-panel button {
+    padding: 12px 16px;
+    border: none;
+    border-radius: 6px;
+    background-color: #2d2d2d;
+    color: #f5f5f5;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    font-size: 0.95rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.button-panel button:hover {
+    background-color: #3a3a3a;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.button-panel button:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.button-panel button::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, #4a9fff, #6e42e5);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.3s ease;
+}
+
+.button-panel button:hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+}
+
+.drawing-area {
+    flex: 1;
+    padding: 25px;
+    position: relative;
+    background-color: #1e1e1e;
+}
+
+#drawingCanvas {
+    width: 100%;
+    height: 100%;
+    border: 1px solid #333;
+    border-radius: 8px;
+    background-color: #2a2a2a;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Footer样式 */
+.footer {
+    background-color: #1a1a1a;
+    padding: 20px 0;
+    text-align: center;
+    border-top: 1px solid #333;
+    width: 100%;
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.2);
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    height: 80px; /* 固定高度 */
+}
+
+.footer-content {
+    width: 90%;
+    margin: 0 auto;
+    padding: 0;
+}
+
+.footer p {
+    margin: 6px 0;
+    font-size: 14px;
+    color: #b0b0b0;
+    line-height: 1.4;
+}
+
+.footer p:first-child {
+    font-weight: 600;
+    color: #f5f5f5;
+    font-size: 15px;
+}
+
+/* 坐标和提示框样式 */
+.coords-display, .instruction-display, .area-display {
+    background: rgba(20, 20, 20, 0.85);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 13px;
+    pointer-events: none;
+    z-index: 1000;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(4px);
+}
+
+/* 添加一些微妙的动画 */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.coords-display, .instruction-display, .area-display {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* 媒体查询，确保在不同屏幕尺寸下的响应式布局 */
+@media (max-width: 768px) {
+    body {
+        padding-bottom: 100px; /* 移动端增加底部padding */
+        overflow: auto; /* 在移动设备上允许页面滚动 */
+    }
+    
+    .main-content {
+        padding: 20px;
+        height: auto;
+        overflow: auto;
+    }
+    
+    .container {
+        flex-direction: column;
+        height: auto;
+        min-height: 70vh;
+        overflow: auto;
+    }
+    
+    .button-panel {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #333;
+        overflow: visible;
+    }
+    
+    .panel-title {
+        padding: 15px;
+        position: static;
+    }
+    
+    .button-panel-content {
+        padding: 15px;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        overflow: visible;
+    }
+    
+    .button-panel button {
+        flex: 0 0 45%;
+        margin: 5px;
+        font-size: 0.9rem;
+    }
+    
+    .drawing-area {
+        height: 60vh;
+        padding: 15px;
+    }
+    
+    .footer {
+        height: 100px; /* 移动端增加footer高度 */
+    }
+}
+
+@media (max-width: 480px) {
+    .main-content {
+        padding: 15px;
+    }
+    
+    .button-panel button {
+        flex: 0 0 100%;
+        padding: 10px;
+    }
+    
+    .footer p {
+        font-size: 12px;
+    }
+}
+
+/* 应用标题样式 */
+.app-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.app-header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #ffffff;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.app-header p {
+    font-size: 16px;
+    color: #aaaaaa;
+    margin-bottom: 20px;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.app-header a {
+    color: #b490ff; /* 浅紫色 */
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.app-header a:hover {
+    color: #9370DB; /* 悬停时使用较深的紫色 */
+    text-decoration: underline;
+}
+
+/* 按钮分组样式 */
+.button-group {
+    margin-bottom: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
+    width: 100%;
+}
+
+.button-group:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+/* 固定的控制面板标题 */
+.panel-title {
+    font-size: 1.2rem;
+    margin: 0;
+    font-weight: 600;
+    color: #ffffff;
+    padding: 20px 15px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    position: sticky;
+    top: 0;
+    background-color: #252525;
+    z-index: 10;
+}
+
+.panel-title i {
+    color: #aaaaaa;
+    margin-left: 6px;
+    animation: scrollHint 2s ease-in-out infinite;
+    position: relative;
+    top: -1px;
+}
+
+.panel-title i.fa-arrows-alt-v {
+    margin-left: 2px;
+}
+
+@keyframes scrollHint {
+    0%, 100% { opacity: 0.5; transform: translateY(0); }
+    50% { opacity: 1; transform: translateY(3px); }
+}
+
+/* 创建可滚动的按钮面板内容区域 */
+.button-panel-content {
+    padding: 0 15px 20px 15px;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.group-title {
+    font-size: 0.9rem;
+    margin: 0.4rem 0;
+    color: #888888;
+    font-weight: normal;
+}
+
+.button-panel button {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    width: 100%;
+    margin-bottom: 6px;
+}
+
+.help-title, .reference-title {
+    font-size: 0.9rem;
+    margin: 0.6rem 0 0.3rem 0;
+    color: #888888;
+}
+
+.shortcut-list,
+.instruction-list {
+    padding-left: 15px;
+    margin-top: 5px;
+}
+
+.shortcut-list li,
+.instruction-list li {
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+}
+
+.reference-text,
+.reference-doi {
+    font-size: 0.75rem;
+    line-height: 1.3;
+}
+
+.key {
+    font-size: 0.75rem;
+    padding: 2px 4px;
+}
+
+/* 按钮图标样式 */
+.button-panel button i {
+    margin-right: 6px;
+    font-size: 0.8rem;
+}
+
+/* 画布容器和状态叠加层 */
+.canvas-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.canvas-overlay {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+}
+
+.canvas-stats {
+    background-color: rgba(0, 0, 0, 0.6);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #dddddd;
+}
+
+/* 通知样式 */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    left: auto;
+    transform: translateY(-20px);
+    padding: 12px 20px;
+    border-radius: 8px;
+    background-color: rgba(0, 0, 0, 0.85);
+    color: white;
+    font-size: 14px;
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.3);
+    max-width: 300px;
+    text-align: center;
+}
+
+.notification.info {
+    border-left: 4px solid #2196F3;
+}
+
+.notification.error {
+    border-left: 4px solid #F44336;
+}
+
+.notification.warning {
+    border-left: 4px solid #FF9800;
+}
+
+/* 测量结果通知样式 */
+.notification.info.measure-result {
+    min-width: 300px;
+    padding: 15px;
+    background-color: rgba(0, 0, 0, 0.9);
+    border-left: 4px solid #03A9F4;
+    text-align: left;
+}
+
+.notification.info.measure-result strong {
+    display: block;
+    text-align: center;
+    margin-bottom: 8px;
+    font-size: 16px;
+    color: #03A9F4;
+}
+
+.reference-doi a {
+    color: #aaaaaa; /* 浅灰色 */
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.reference-doi a:hover {
+    color: #cccccc; /* 悬停时稍微亮一点 */
+    text-decoration: underline;
+}
+
+/* 帮助和引用区域样式 */
+.help-section,
+.reference-section {
+    width: 100%;
+    margin-top: 5px;
+}
+
+/* 滑块样式 */
+.slider-group {
+    margin-bottom: 8px;
+}
+
+.slider-group label {
+    display: block;
+    font-size: 0.8rem;
+    margin-bottom: 4px;
+    color: #cccccc;
+}
+
+.slider {
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: #444;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #4a9fff;
+    cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #4a9fff;
+    cursor: pointer;
+    border: none;
+}
+
+/* 复选框样式 */
+.checkbox-group {
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+}
+
+.toggle-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 36px;
+    height: 18px;
+    border-radius: 10px;
+    background-color: #444;
+    position: relative;
+    cursor: pointer;
+    outline: none;
+    margin-right: 8px;
+    transition: background-color 0.3s;
+}
+
+.toggle-checkbox:checked {
+    background-color: #4a9fff;
+}
+
+.toggle-checkbox::before {
+    content: '';
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: #fff;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: left 0.3s;
+}
+
+.toggle-checkbox:checked::before {
+    left: 20px;
+}
+
+.checkbox-group label {
+    font-size: 0.8rem;
+    color: #cccccc;
+    cursor: pointer;
+}
+
+/* 文件输入按钮样式 */
+.file-input-label {
+    display: block;
+    padding: 8px 12px;
+    background-color: #2d2d2d;
+    color: #f5f5f5;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    font-size: 0.8rem;
+    margin-bottom: 6px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.file-input-label:hover {
+    background-color: #3a3a3a;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.file-input-label::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, #4a9fff, #6e42e5);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.3s ease;
+}
+
+.file-input-label:hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+}
+
+.file-input-label i {
+    margin-right: 6px;
+    font-size: 0.8rem;
+}
+
+.hidden-file-input {
+    display: none;
+} 
