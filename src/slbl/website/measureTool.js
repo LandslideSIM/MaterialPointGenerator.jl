@@ -195,17 +195,17 @@ class MeasureTool {
     // 开始测量
     startMeasuring() {
         if (!this.pointManager.hasPoints()) {
-            alert('请先加载点云数据');
+            alert('Please load the point cloud data first.');
             return;
         }
         
         this.isMeasuring = true;
         this.selectedPoints = [];
         this.instructionDisplay.innerHTML = `
-            测量模式...<br>
-            点击: 选择两个点<br>
-            Backspace/Delete: 撤销上一个点<br>
-            Esc: 取消测量
+            Measurement mode...<br>
+            Click: Select two points<br>
+            Backspace/Delete: Undo the previous point<br>
+            Esc: Cancel measurement
         `;
         this.instructionDisplay.style.display = 'block';
         this.canvas.style.cursor = 'crosshair';
