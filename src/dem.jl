@@ -23,10 +23,14 @@ include(joinpath(@__DIR__, "_dem/_utils.jl"))
 
 Description:
 ---
-Inverse Distance Weighting (IDW) interpolation method. `k` is the number of nearest 
-neighbors, `p` is the power parameter, `dem` is a coordinates Array with three columns 
-`(x, y, z)`, `idxs` is the index of the nearest neighbors, `ptslist` is the coordinates 
-Array of the particles, `tree` is the KDTree of the DEM.
+Inverse Distance Weighting (IDW) interpolation method. 
+
+- `k` is the number of nearest neighbors
+- `p` is the power parameter
+- `dem` is a coordinates Array with three columns `(x, y, z)`
+- `idxs` is the index of the nearest neighbors, 
+- `ptslist` is the coordinates Array of the particles
+- `tree` is the KDTree of the DEM
 """
 @views function IDW!(
     k      ::T1, 
@@ -68,17 +72,25 @@ end
 
 Description:
 ---
-Rasterize the DEM file to generate particles. `dem` is a coordinates Array with three 
-columns `(x, y, z)`. `h` is the space of the cloud points in `x` and `y` directions, 
-normally it is equal to the grid size in the MPM simulation. `k` is the number of nearest 
-neighbors (10 by default), `p` is the power parameter (2 by default), `trimbounds` is the 
-boundary of the particles, `dembounds` is the boundary of the DEM.
+Rasterize the DEM file to generate particles. 
+
+- `dem` is a coordinates Array with three columns `(x, y, z)`
+- `h` is the space of the cloud points in `x` and `y` directions, normally it is equal to 
+the grid size in the MPM simulation. 
+
+[optional]:
+
+- `k` is the number of nearest neighbors (10 by default)
+- `p` is the power parameter (2 by default)
+- `trimbounds` is the boundary of the particles, which is a N*2 array, each row is a vertex 
+of the polygon
+- `dembounds` is the rectangle boundary of the DEM, which is [xmin, xmax, ymin, ymax]
 """
 @views function rasterizeDEM(
     dem       ::AbstractMatrix{T2},
     h         ::T2; 
-    k         ::T1        = 10, 
-    p         ::T1        = 2, 
+    k         ::T1 = 10, 
+    p         ::T1 = 2, 
     trimbounds::AbstractMatrix{T2}= [0.0 0.0], 
     dembounds ::AbstractVector{T2}= [0.0, 0.0]
 ) where {T1, T2}
@@ -103,13 +115,9 @@ boundary of the particles, `dembounds` is the boundary of the DEM.
     ξ0 = meshbuilder(dem_xmin : h : dem_xmax, dem_ymin : h : dem_ymax)
     if trimbounds ≠ [0.0 0.0]
         @info "trimming particles outside the trimbounds"
-        pts = size(ξ0, 1)
-        rst = Vector{Bool}(undef, pts) 
-        @inbounds Threads.@threads for i in 1:pts
-            px = ξ0[i, 1]
-            py = ξ0[i, 2]
-            rst[i] = particle_in_polygon(px, py, trimbounds)
-        end
+        py_polygon = Polygon(trimbounds)
+        py_points = shapely.points(ξ0)
+        rst = pyconvert(Vector{Bool}, contains(py_polygon, py_points))
         ξ0 = ξ0[findall(rst), :]
     end
     ptslist = hcat(ξ0, zeros(T2, size(ξ0, 1)))
@@ -118,13 +126,24 @@ boundary of the particles, `dembounds` is the boundary of the DEM.
     tree = KDTree(dem[:, 1:2]')
     idxs = zeros(T1, size(ptslist, 1), k)
     IDW!(k, p, dem, idxs, ptslist, tree)
-
-    # move the models to the grid (space = h)
-    @. ptslist[:, 3] = ceil(ptslist[:, 3] / h) * h
     
     return sort_pts_xy(ptslist)
 end
 
+"""
+    rasterizeDEM(dem, h, polygon; k=10, p=2)
+
+Description:
+---
+Rasterize the DEM file to generate particles. 
+
+- `dem` is a coordinates Array with three columns `(x, y, z)`
+- `h` is the space of the cloud points in `x` and `y` directions, normally it is equal to 
+the grid size in the MPM simulation
+- `polygon` is a N*2 array, each row is a vertex of the polygon
+- `k` is the number of nearest neighbors (10 by default)
+- `p` is the power parameter (2 by default)
+"""
 @views function rasterizeDEM(
     dem    ::AbstractMatrix{T2},
     h      ::T2,
@@ -132,7 +151,6 @@ end
     k      ::Int = 10, 
     p      ::Int = 2
 ) where T2
-    pypolygon = Polygon(np.array(polygon))
     # check input arguments
     size(dem, 2) ≠ 3 && throw(ArgumentError("DEM should have three columns: x, y, z"))
     h > 0 || throw(ArgumentError("h must be positive"))
@@ -143,9 +161,9 @@ end
 
     # trim the boundary based on the polygon
     ξ0 = meshbuilder(dem_xmin : h : dem_xmax, dem_ymin : h : dem_ymax)
-    x_test = np.array(ξ0[:, 1])
-    y_test = np.array(ξ0[:, 2])
-    v_in_id = pyconvert(Vector, v_contains(pypolygon, x_test, y_test))
+    py_points = shapely.points(ξ0)
+    py_polygon = Polygon(polygon)
+    v_in_id = pyconvert(Vector{Bool}, contains(py_polygon, py_points))
     ptslist = hcat(ξ0[v_in_id, :], zeros(T2, count(v_in_id)))
 
     # create KDTree for DEM
@@ -153,12 +171,17 @@ end
     idxs = zeros(Int, size(ptslist, 1), k)
     IDW!(k, p, dem, idxs, ptslist, tree)
 
-    # move the models to the grid (space = h)
-    @. ptslist[:, 3] = ceil(ptslist[:, 3] / h) * h
-    
     return ptslist
 end
 
+"""
+    getpolygon(pts; ratio=0.1)
+
+Description:
+---
+Get the polygon from the given points. `pts` is a Nx2 or Nx3 array, and `ratio` is the
+parameter for the concave hull. The default value is 0.1.
+"""
 function getpolygon(pts::AbstractMatrix; ratio=0.1)
     pts_col = size(pts, 2)
     if pts_col == 2
@@ -183,8 +206,8 @@ size in the MPM simulation. `bottom` is a value, which means the plane `z = bott
 """
 @views function dem2particle(
     dem   ::AbstractMatrix{T2}, 
-    h     ::T2, 
-    bottom::T2
+    h     ::Real, 
+    bottom::Real
 ) where T2
     # values check
     T1 = T2 == Float32 ? Int32 : Int64
@@ -236,8 +259,8 @@ surfaces. Note that layers are sorted from top to bottom.
 """
 @views function dem2particle(
     dem   ::AbstractMatrix{T2}, 
-    h     ::T2, 
-    bottom::T2,
+    h     ::Real, 
+    bottom::Real,
     layer ::AbstractVector{AbstractMatrix{T2}}
 ) where T2
     # values check
@@ -341,7 +364,7 @@ than the dem. `h` is the space of grid size in `z` direction used in the MPM sim
 """
 @views function dem2particle(
     dem   ::AbstractMatrix{T2}, 
-    h     ::T2, 
+    h     ::Real, 
     bottom::AbstractMatrix{T2}
 ) where T2
     # values check
@@ -401,7 +424,7 @@ are sorted from top to bottom.
 """
 @views function dem2particle(
     dem   ::AbstractMatrix{T2}, 
-    h     ::T2, 
+    h     ::Real, 
     bottom::AbstractMatrix{T2},
     layer ::Vector{Matrix{T2}}
 ) where T2
