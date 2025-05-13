@@ -91,8 +91,8 @@ of the polygon
     h         ::T2; 
     k         ::T1 = 10, 
     p         ::T1 = 2, 
-    trimbounds::AbstractMatrix{T2}= [0.0 0.0], 
-    dembounds ::AbstractVector{T2}= [0.0, 0.0]
+    trimbounds::AbstractMatrix{T2} = [0.0 0.0], 
+    dembounds ::AbstractVector{T2} = [0.0, 0.0]
 ) where {T1, T2}
     # check input arguments
     size(dem, 2) ≠ 3 && throw(ArgumentError("DEM should have three columns: x, y, z"))
@@ -117,61 +117,31 @@ of the polygon
         @info "trimming particles outside the trimbounds"
         py_polygon = Polygon(trimbounds)
         py_points = shapely.points(ξ0)
-        rst = pyconvert(Vector{Bool}, contains(py_polygon, py_points))
+        rst = pyconvert(Vector{Bool}, shapely.contains(py_polygon, py_points))
         ξ0 = ξ0[findall(rst), :]
     end
     ptslist = hcat(ξ0, zeros(T2, size(ξ0, 1)))
+    dem_vid = zeros(Bool, size(ptslist, 1))
+
+    # create hash table for the pts
+    dict = Dict{NTuple{2, T2}, T2}((dem[i, 1], dem[i, 2]) => dem[i, 3] for i in axes(dem, 1))
+    # populate the ptslist with the z value
+    @inbounds for i in axes(ptslist, 1)
+        xy = (ptslist[i, 1], ptslist[i, 2])
+        if haskey(dict, xy)
+            ptslist[i, 3] = dict[xy]
+            dem_vid[i] = true
+        end
+    end
+    pts1 = ptslist[dem_vid, :]
+    pts2 = ptslist[.!dem_vid, :]
 
     # create KDTree for DEM
     tree = KDTree(dem[:, 1:2]')
-    idxs = zeros(T1, size(ptslist, 1), k)
-    IDW!(k, p, dem, idxs, ptslist, tree)
-    
-    return sort_pts_xy(ptslist)
-end
+    idxs = zeros(T1, size(pts2, 1), k)
+    IDW!(k, p, dem, idxs, pts2, tree)
 
-"""
-    rasterizeDEM(dem, h, polygon; k=10, p=2)
-
-Description:
----
-Rasterize the DEM file to generate particles. 
-
-- `dem` is a coordinates Array with three columns `(x, y, z)`
-- `h` is the space of the cloud points in `x` and `y` directions, normally it is equal to 
-the grid size in the MPM simulation
-- `polygon` is a N*2 array, each row is a vertex of the polygon
-- `k` is the number of nearest neighbors (10 by default)
-- `p` is the power parameter (2 by default)
-"""
-@views function rasterizeDEM(
-    dem    ::AbstractMatrix{T2},
-    h      ::T2,
-    polygon::AbstractMatrix{T2}; 
-    k      ::Int = 10, 
-    p      ::Int = 2
-) where T2
-    # check input arguments
-    size(dem, 2) ≠ 3 && throw(ArgumentError("DEM should have three columns: x, y, z"))
-    h > 0 || throw(ArgumentError("h must be positive"))
-
-    # get particles from DEM domain
-    dem_xmin, dem_xmax = minimum(dem[:, 1]), maximum(dem[:, 1])
-    dem_ymin, dem_ymax = minimum(dem[:, 2]), maximum(dem[:, 2])
-
-    # trim the boundary based on the polygon
-    ξ0 = meshbuilder(dem_xmin : h : dem_xmax, dem_ymin : h : dem_ymax)
-    py_points = shapely.points(ξ0)
-    py_polygon = Polygon(polygon)
-    v_in_id = pyconvert(Vector{Bool}, contains(py_polygon, py_points))
-    ptslist = hcat(ξ0[v_in_id, :], zeros(T2, count(v_in_id)))
-
-    # create KDTree for DEM
-    tree = KDTree(dem[:, 1:2]')
-    idxs = zeros(Int, size(ptslist, 1), k)
-    IDW!(k, p, dem, idxs, ptslist, tree)
-
-    return ptslist
+    return sort_pts_xy(vcat(pts1, pts2))
 end
 
 """
