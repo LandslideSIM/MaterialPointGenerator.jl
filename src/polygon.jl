@@ -19,8 +19,8 @@ export polygon2particle
 Description:
 ---
 Determine whether a point [px, py] is inside a polygon. Note the vertices of the polygon 
-should be ordered in a **counterclockwise** manner; otherwise, it may lead to incorrect 
-results.
+should be ordered in a **counterclockwise** manner, it is better to use the function 
+`getpolygon` to get it; otherwise, it may lead to incorrect results.
 
 Example:
 ---
@@ -34,13 +34,17 @@ particle_in_polygon(polygon, 0.5, 0.1) # check points (0.5, 0.1)
     px     ::Real, 
     py     ::Real
 ) where T<:Real
+    # inputs check
     n, m = size(polygon)
     n < 3 && error("polygon should have at least 3 vertices")
-    m in [2, 3] || error("polygon should be a Nx2 or Nx3 (neglect z) array")
-    poly = polygon[1, :] == polygon[end, :] ? copy(polygon[1:end-1, 1:2]) : 
-                                              copy(polygon[:, 1:2])
-    py_polygon = Polygon(poly)
+    m == 2 || error("polygon should be a Nx2 array")
+    
+    # convert to python objects
+    py_polygon = Polygon(polygon)
+
+    # check if the particle is inside the polygon
     rst = contains_xy(py_polygon, px, py)
+
     return pyconvert(Bool, rst.item())
 end
 
@@ -49,9 +53,12 @@ end
 
 Description:
 ---
-Determine whether a point set is inside a polygon. Note the vertices of the polygon should 
-be ordered in a **counterclockwise** manner; otherwise, it may lead to incorrect results.
-`points` is a Nx2 array, where N is the number of points to be checked.
+Determine whether a point set is inside a polygon. 
+
+- `polygon` is a Nx2 array. Note the vertices of the polygon should be ordered in a 
+**counterclockwise** manner, it is better to use the function `getpolygon` to get it; 
+otherwise, it may lead to incorrect results.
+- `points` is a Nx2 array, where N is the number of points to be checked.
 
 Example:
 ---
@@ -65,19 +72,22 @@ particle_in_polygon(polygon, points) # check points (0.5, 0.1), (1.5, 0.5), (2.5
     polygon::AbstractMatrix{T1}, 
     points ::AbstractMatrix{T2}
 ) where {T1<:Real, T2<:Real}
-    # inputs check
+    # inputs check for polygon
     n, m = size(polygon)
     n < 3 && error("polygon should have at least 3 vertices")
-    m in [2, 3] || error("polygon should be a Nx2 or Nx3 (neglect z) array")
-    poly = polygon[1, :] == polygon[end, :] ? copy(polygon[1:end-1, 1:2]) : 
-                                              copy(polygon[:, 1:2])
+    m == 2 || error("polygon should be a Nx2 array")
+    # inputs check for points
     n, m = size(points)
     n ≥ 1 || error("points should have at least 1 point")
     m == 2 || error("points should be a Nx2 array")
+
     # convert to python objects
-    py_polygon = Polygon(poly)
+    py_polygon = Polygon(polygon)
     py_points = shapely.points(points)
+    
+    # check if the particle is inside the polygon
     rst = shapely.contains(py_polygon, py_points)
+
     return pyconvert(Vector{Bool}, rst)
 end
 
@@ -122,28 +132,33 @@ be ordered in a **counterclockwise** manner; otherwise, it may lead to incorrect
 structured particles in a rectangle area.
 """
 @views function polygon2particle(polygon::AbstractMatrix{T}, lpx, lpy) where T<:Real
+    # inputs check
     n, m = size(polygon)
     n < 3 && error("polygon should have at least 3 vertices")
-    m in [2, 3] || error("polygon should be a Nx2 or Nx3 (neglect z) array")
-    poly = polygon[1, :] == polygon[end, :] ? copy(polygon[1:end-1, 1:2]) : 
-                                              copy(polygon[:, 1:2])
+    m == 2 || error("polygon should be a Nx2 array")
+
     # get bounding box for particles
-    x_min = minimum(poly[:, 1])
-    x_max = maximum(poly[:, 1])
-    y_min = minimum(poly[:, 2])
-    y_max = maximum(poly[:, 2])
+    x_min = minimum(polygon[:, 1])
+    x_max = maximum(polygon[:, 1])
+    y_min = minimum(polygon[:, 2])
+    y_max = maximum(polygon[:, 2])
     offsetx = (x_max - x_min) * 0.2
     offsety = (y_max - y_min) * 0.2
     x_min -= offsetx
     x_max += offsetx
     y_min -= offsety
     y_max += offsety
+
     # generate structured particles
     mesh = meshbuilder(x_min : lpx : x_max, y_min : lpy : y_max)
-    py_poly = Polygon(poly)
+    
+    # convert to python objects
+    py_poly = Polygon(polygon)
     py_points = shapely.points(mesh)
+    
     # check if the particle is inside the polygon
     rst = pyconvert(Vector{Bool}, shapely.contains(py_poly, py_points))
+    
     return copy(mesh[findall(rst), :])
 end
 
