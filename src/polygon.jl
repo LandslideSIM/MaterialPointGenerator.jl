@@ -86,7 +86,7 @@ particle_in_polygon(polygon, points) # check points (0.5, 0.1), (1.5, 0.5), (2.5
     py_points = shapely.points(points)
     
     # check if the particle is inside the polygon
-    rst = shapely.within(py_polygon, py_points)
+    rst = shapely.within(py_points, py_polygon)
 
     return pyconvert(Vector{Bool}, rst)
 end
@@ -124,7 +124,7 @@ particle_in_polygon(stl_file, points) # check points (0.5, 0.1), (1.5, 0.5), (2.
         region = unary_union([Polygon(t) for t in tris2d])
 
         # 3) 向量化包含测试
-        mask = shapely.within(region, py_points)
+        mask = shapely.within(py_points, region)
 
         return mask
     """ => py_pip2
