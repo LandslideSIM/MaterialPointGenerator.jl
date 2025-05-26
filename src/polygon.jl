@@ -91,6 +91,47 @@ particle_in_polygon(polygon, points) # check points (0.5, 0.1), (1.5, 0.5), (2.5
     return pyconvert(Vector{Bool}, rst)
 end
 
+"""
+    particle_in_polygon(stl_file, points)
+
+Description:
+---
+Determine whether a point set is inside a polygon defined by a 3D STL file. The STL file is
+a 2D (z=0) model. The points are given as a Nx2 array, where N is the number of points to be
+checked.
+
+Example:
+---
+```julia
+stl_file = "path/to/your/model.stl"
+points = [0.5 0.1; 1.5 0.5; 2.5 0.5]
+particle_in_polygon(stl_file, points) # check points (0.5, 0.1), (1.5, 0.5), (2.5, 0.5)
+```
+"""
+@views function particle_in_polygon(
+    stl_file::String, 
+    points  ::AbstractMatrix{T}
+) where T<:Real
+    size(points, 2) == 2 || error("points must be 2D coordinates (N, 2)")
+    py_points = shapely.points(points)
+    @pyexec """
+    def py_pip2(stl_file, py_points, trimesh, shapely, Polygon, unary_union):
+
+        mesh = trimesh.load(stl_file, force='mesh')   # → (n_tri, 3, 3)
+        tris2d = mesh.triangles[:, :, :2]               # 取 X-Y
+
+        # 2) 把每个三角形变成 Shapely Polygon
+        region = unary_union([Polygon(t) for t in tris2d])
+
+        # 3) 向量化包含测试（Shapely 2.x）
+        mask = shapely.contains(region, points)            # dtype=bool, shape=(N,)
+
+        return mask
+    """ => py_pip2
+    tmp = py_pip2(stl_file, py_points, trimesh, shapely)
+    return pyconvert(Vector{Bool}, tmp)
+end
+
 # """
 #     particle_in_polygon(px, py, polygon)
 
