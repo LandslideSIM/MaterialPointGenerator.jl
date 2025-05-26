@@ -123,12 +123,12 @@ particle_in_polygon(stl_file, points) # check points (0.5, 0.1), (1.5, 0.5), (2.
         # 2) 把每个三角形变成 Shapely Polygon
         region = unary_union([Polygon(t) for t in tris2d])
 
-        # 3) 向量化包含测试（Shapely 2.x）
-        mask = shapely.contains(region, points)            # dtype=bool, shape=(N,)
+        # 3) 向量化包含测试
+        mask = shapely.contains(region, py_points)
 
         return mask
     """ => py_pip2
-    tmp = py_pip2(stl_file, py_points, trimesh, shapely)
+    tmp = py_pip2(stl_file, py_points, trimesh, shapely, Polygon, unary_union)
     return pyconvert(Vector{Bool}, tmp)
 end
 
