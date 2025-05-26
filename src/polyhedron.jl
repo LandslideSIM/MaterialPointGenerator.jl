@@ -7,10 +7,11 @@
 |  Start Date : 01/01/2022                                                                 |
 |  Affiliation: Risk Group, UNIL-ISTE                                                      |
 |  Functions  : 01. polyhedron2particle                                                    |
-|               02. trimesh_voxelize                                                       |
+|               02. particle_in_polyhedron                                                 |
 +==========================================================================================#
 
 export polyhedron2particle
+export particle_in_polyhedron
 
 struct GmshMesh{T1, T2}
     vertices :: Array{T2, 2}
@@ -383,4 +384,30 @@ function polyhedron2particle(
     end
 
     return nothing
+end
+
+"""
+    particle_in_polyhedron(stl_file::String, points::AbstractMatrix{T}) where T<:Real
+
+Description:
+---
+Check if the given points are inside the polyhedron defined by the STL file. The function
+returns a vector of Booleans indicating whether each point is inside the polyhedron.
+
+Example:
+---
+```julia
+stl_file = "/path/to/your/model.stl"
+points = rand(100, 3)  # 100 random points in 3D space
+mask = particle_in_polyhedron(stl_file, points)
+"""
+@views function particle_in_polyhedron(
+    stl_file::String, 
+    points  ::AbstractMatrix{T}
+) where T<:Real
+    embreex_s = PythonCall.pyisnull(embreex) ? false : true
+    size(points, 2) == 3 || error("points must be 3D coordinates (N, 3)")
+    mesh = trimesh.load(stl_file, force="mesh", use_embree=embreex_s)
+    mask = mesh.contains(np.array(points))
+    return pyconvert(Vector{Bool}, mask)
 end
