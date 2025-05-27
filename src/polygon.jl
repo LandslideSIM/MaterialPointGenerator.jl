@@ -198,7 +198,7 @@ structured particles in a rectangle area.
     py_points = shapely.points(mesh)
     
     # check if the particle is inside the polygon
-    rst = pyconvert(Vector{Bool}, shapely.contains(py_poly, py_points))
+    rst = pyconvert(Vector{Bool}, shapely.within(py_points, py_poly))
     
     return copy(mesh[findall(rst), :])
 end
