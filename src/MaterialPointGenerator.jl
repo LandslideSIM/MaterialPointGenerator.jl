@@ -11,7 +11,7 @@
 
 module MaterialPointGenerator
 
-using CondaPkg, DelimitedFiles, Gmsh, NearestNeighbors, Printf, PythonCall
+using CondaPkg, DelimitedFiles, NearestNeighbors, Printf, PythonCall
 using LinearAlgebra: mul!, eigen, Symmetric, normalize
 using Statistics: mean
 using GMT: concavehull

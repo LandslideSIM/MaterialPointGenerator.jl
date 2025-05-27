@@ -13,7 +13,7 @@
 export polyhedron2particle
 export particle_in_polyhedron
 
-struct GmshMesh{T1, T2}
+struct DataMesh{T1, T2}
     vertices :: Array{T2, 2}
     faces    :: Array{T1, 2}
     data     :: Vector{Vector{T2}}
