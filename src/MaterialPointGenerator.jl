@@ -21,6 +21,7 @@ import LinearAlgebra.LAPACK: syev!
 
 const trimesh      = PythonCall.pynew()
 const np           = PythonCall.pynew()
+const rtree        = PythonCall.pynew()
 const shapely      = PythonCall.pynew()
 const MultiPolygon = PythonCall.pynew()
 const Polygon      = PythonCall.pynew()
@@ -40,6 +41,7 @@ function __init__()
     # import Python modules
     PythonCall.pycopy!(trimesh , pyimport("trimesh" ))
     PythonCall.pycopy!(np      , pyimport("numpy"   ))
+    PythonCall.pycopy!(rtree   , pyimport("rtree"   ))
     PythonCall.pycopy!(shapely , pyimport("shapely" ))
     PythonCall.pycopy!(rasterio, pyimport("rasterio"))
     PythonCall.pycopy!(pygmsh  , pyimport("gmsh"    ))
