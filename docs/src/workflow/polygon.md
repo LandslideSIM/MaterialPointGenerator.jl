@@ -11,7 +11,7 @@ For the second scenario, to support complex polygons in any situation, we need t
 We are preparing to discretize a two-dimensional pentagon, noting that the specified distance is between the material points in both the x and y directions.
 
 ```@docs
-polygon2particle(polygon, lpx, lpy)
+polygon2particle(polygon::AbstractMatrix{T}, lpx, lpy) where T<:Real
 ```
 
 ```julia
@@ -39,7 +39,7 @@ julia> pts = polygon2particle(polygon, 0.01, 0.01)
 Please use pre-processing tools like Gmsh or MeshLab to ensure that the current mesh is closed in advance.
 
 ```@docs
-polygon2particle(stl_file::String, output_file::String, h; verbose::Bool=true)
+polygon2particle(stl_file::String, output_file::String, h; verbose::Bool=false)
 ```
 
 ## Advanced
@@ -49,7 +49,11 @@ This involves some advanced operations for partitioning the generated material p
 For the first case, we can utilize a practical function to check if a point is inside the polygon. 
 
 ```@docs
-particle_in_polygon(px::T, py::T, polygon) where T
+particle_in_polygon(
+    polygon::AbstractMatrix{T}, 
+    px     ::Real, 
+    py     ::Real
+) where T<:Real
 ```
 
 For the second case, in addition to the `.stl` file, we also need to provide a `.msh` file.
@@ -61,6 +65,6 @@ polygon2particle(
     output_file::String,
     nid_file   ::String,
     h; 
-    verbose    ::Bool=true
+    verbose    ::Bool=false
 )
 ```

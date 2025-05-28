@@ -14,12 +14,12 @@ The DEM file is a simple three-column array. Each DEM must be rasterized to ensu
 
 ```@docs
 rasterizeDEM(
-    dem       ::Matrix{T2},
+    dem       ::AbstractMatrix{T2},
     h         ::T2; 
-    k         ::T1        = 10, 
-    p         ::T1        = 2, 
-    trimbounds::Matrix{T2}= [0.0 0.0], 
-    dembounds ::Vector{T2}= [0.0, 0.0]
+    k         ::T1 = 10, 
+    p         ::T1 = 2, 
+    trimbounds::AbstractMatrix{T2} = [0.0 0.0], 
+    dembounds ::AbstractVector{T2} = [0.0, 0.0]
 ) where {T1, T2}
 ```
 
@@ -31,9 +31,9 @@ Suppose we have a DEM and we want to close it with a base plane, for example, at
 
 ```@docs
 dem2particle(
-    dem   ::Matrix{T2}, 
-    h     ::T2, 
-    bottom::T2
+    dem   ::AbstractMatrix{T2}, 
+    h     ::Real, 
+    bottom::Real
 ) where T2
 ```
 
@@ -43,9 +43,9 @@ If the base used to close DEM-1 is not a flat surface, we can designate another 
 
 ```@docs
 dem2particle(
-    dem   ::Matrix{T2}, 
-    h     ::T2, 
-    bottom::Matrix{T2}
+    dem   ::AbstractMatrix{T2}, 
+    h     ::Real, 
+    bottom::AbstractMatrix{T2}
 ) where T2
 ```
 
@@ -63,10 +63,10 @@ To prepare for this, you need to have layered surface files in DEM format, which
 
 ```@docs
 dem2particle(
-    dem   ::Matrix{T2}, 
-    h     ::T2, 
-    bottom::T2,
-    layer ::Vector{Matrix{T2}}
+    dem   ::AbstractMatrix{T2}, 
+    h     ::Real, 
+    bottom::Real,
+    layer ::AbstractVector{AbstractMatrix{T2}}
 ) where T2
 ```
 
@@ -76,9 +76,9 @@ This workflow also supports the case where a bottom DEM is provided:
 
 ```@docs
 dem2particle(
-    dem   ::Matrix{T2}, 
-    h     ::T2, 
-    bottom::Matrix{T2},
+    dem   ::AbstractMatrix{T2}, 
+    h     ::Real, 
+    bottom::AbstractMatrix{T2},
     layer ::Vector{Matrix{T2}}
 ) where T2
 ```
