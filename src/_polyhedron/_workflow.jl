@@ -11,11 +11,17 @@ function readmesh(mesh_file; precision="FP32")::DataMesh
     T2 = precision == "FP32" ? Float32 : Float64
 
     mesh = trimesh.load(mesh_file)
+    pyconvert(Bool, mesh.is_watertight) || error(
+        "The mesh is not watertight. Please check the mesh quality.")
+
     coords = pyconvert(Array{T2}, mesh.vertices)
     triang = pyconvert(Array{T1}, mesh.faces) .+ 1
 
-    vertices = Array{T2}(coords')
-    faces    = Array{T1}(triang')
+    v_tmp = Array{T2}(coords)
+    zoffset = minimum(v_tmp[:, 3]) > 10 ? 0 : (10-minimum(v_tmp[:, 3]))
+    v_tmp[:, 3] .+= zoffset
+    vertices = Array{T2}(v_tmp')
+    faces = Array{T1}(triang')
 
     data = [Vector{T2}() for _ in 1:size(faces, 2)]
     @inbounds for i in axes(faces, 2), j in 1:3
@@ -28,7 +34,7 @@ function readmesh(mesh_file; precision="FP32")::DataMesh
     xmax, ymax, zmax = map(x -> maximum(x), eachrow(vertices))
     bounds = [xmin, ymin, zmin, xmax, ymax, zmax]
 
-    return DataMesh{T1, T2}(vertices, faces, data, bounds)
+    return DataMesh{T1, T2}(vertices, faces, data, bounds, zoffset)
 end
 
 function _voxelize(meshdata::DataMesh{T1, T2}, h::Real) where {T1, T2}
@@ -36,10 +42,6 @@ function _voxelize(meshdata::DataMesh{T1, T2}, h::Real) where {T1, T2}
     h = T2(h)
     
     # get bbox of the entire mesh
-    # tmp = 4 .+ rand(T2, 6)
-    # mxmin, mxmax = T2(meshdata.bounds[1] - tmp[1]*h), T2(meshdata.bounds[4] + tmp[4]*h)
-    # mymin, mymax = T2(meshdata.bounds[2] - tmp[2]*h), T2(meshdata.bounds[5] + tmp[5]*h)
-    # mzmin, mzmax = T2(meshdata.bounds[3] - tmp[3]*h), T2(meshdata.bounds[6] + tmp[6]*h)
     mxmin, mxmax = T2(meshdata.bounds[1])-6, T2(meshdata.bounds[4]+6)
     mymin, mymax = T2(meshdata.bounds[2])-6, T2(meshdata.bounds[5]+6)
     mzmin, mzmax = T2(meshdata.bounds[3])-6, T2(meshdata.bounds[6]+6)

@@ -14,10 +14,11 @@ export polyhedron2particle
 export particle_in_polyhedron
 
 struct DataMesh{T1, T2}
-    vertices :: Array{T2, 2}
-    faces    :: Array{T1, 2}
-    data     :: Vector{Vector{T2}}
-    bounds   :: Vector{T2}
+    vertices::Array{T2, 2}
+    faces   ::Array{T1, 2}
+    data    ::Vector{Vector{T2}}
+    bounds  ::Vector{T2}
+    zoffset ::T2
 end
 
 rs_dir = joinpath(@__DIR__, "_polyhedron")
@@ -155,6 +156,7 @@ function polyhedron2particle(
         end
         t2 = @elapsed begin
             coords = _voxelize(meshdata, h)
+            coords[:, 3] .-= meshdata.zoffset
         end
         t3 = @elapsed begin
             savexyz(joinpath(@__DIR__, output_file), coords)

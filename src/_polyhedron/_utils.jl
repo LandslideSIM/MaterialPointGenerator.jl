@@ -45,7 +45,7 @@ end
     # 3) 用 (alpha,beta,gamma) 插值三顶点的 z 值
     z = α*v1z + β*v2z + γ*v3z
     
-    return floor((z - mzmin) / h) * h + mzmin
+    return z#, floor((z - mzmin) / h) * h + mzmin
 end
 
 function check_projection!(meshdata::DataMesh{T1, T2}, h::T2, p2t::Vector, mxmin::T2, 
