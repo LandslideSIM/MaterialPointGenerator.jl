@@ -116,7 +116,7 @@ function polyhedron2particle(
             t4_start = pytime.perf_counter()
 
             # 保存结果
-            np.savetxt(output_xyz, voxel_points, fmt="%.6f", delimiter=" ")
+            np.savetxt(output_xyz, pts, fmt="%.6f", delimiter=" ")
 
             t4_end = pytime.perf_counter()
 
