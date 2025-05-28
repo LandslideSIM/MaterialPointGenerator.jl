@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D SLBL BS</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+</head>
+<body>
+    <div class="main-content">
+        <div class="app-header">
+            <h1>3D SLBL Boundary Selector</h1>
+        </div>
+        
+        <div class="container">
+            <div class="button-panel">
+                <h2 class="panel-title">Control Panel <i class="fas fa-mouse fa-sm"></i> <i class="fas fa-arrows-alt-v fa-xs"></i></h2>
+                
+                <div class="button-panel-content">
+                    <div class="button-group">
+                        <h3 class="group-title">Data Operations</h3>
+                        <label for="xyzFileInput" class="file-input-label">
+                            <i class="fas fa-file-upload"></i> Load Point Cloud
+                            <input type="file" id="xyzFileInput" accept=".xyz" class="hidden-file-input">
+                        </label>
+                        <label for="xyFileInput" class="file-input-label">
+                            <i class="fas fa-draw-polygon"></i> Load Polygon
+                            <input type="file" id="xyFileInput" accept=".xy" class="hidden-file-input">
+                        </label>
+                    </div>
+                    
+                    <div class="button-group">
+                        <h3 class="group-title">Edit Tools</h3>
+                        <button id="plotPolygon"><i class="fas fa-pen"></i> Draw Polygon</button>
+                        <button id="measure"><i class="fas fa-ruler"></i> Measure</button>
+                        <button id="clearPolygon"><i class="fas fa-eraser"></i> Clear Polygon + Line</button>
+                        <button id="clearAll"><i class="fas fa-trash-alt"></i> Clear All</button>
+                    </div>
+                    
+                    <div class="button-group">
+                        <h3 class="group-title">Shading Options</h3>
+                        <div class="slider-group">
+                            <label for="azimuthSlider">Light Direction: <span id="azimuthValue">315°</span></label>
+                            <input type="range" id="azimuthSlider" min="0" max="360" value="315" class="slider">
+                        </div>
+                        <div class="slider-group">
+                            <label for="altitudeSlider">Light Angle: <span id="altitudeValue">35°</span></label>
+                            <input type="range" id="altitudeSlider" min="15" max="90" value="35" class="slider">
+                        </div>
+                        <div class="slider-group">
+                            <label for="zFactorSlider">Relief: <span id="zFactorValue">2.0</span></label>
+                            <input type="range" id="zFactorSlider" min="0.5" max="5" value="2" step="0.5" class="slider">
+                        </div>
+                        <button id="applyShading"><i class="fas fa-sun"></i> Apply Shading</button>
+                    </div>
+                    
+                    <div class="button-group">
+                        <h3 class="group-title">Export Options</h3>
+                        <button id="savePolygon"><i class="fas fa-save"></i> Save Polygon</button>
+                        <button id="savePoints"><i class="fas fa-download"></i> Save Points</button>
+                    </div>
+                    
+                    <div class="help-section">
+                        <h3 class="help-title">Keyboard Shortcuts</h3>
+                        <ul class="shortcut-list">
+                            <li><span class="key">"Enter"</span> - Close polygon</li>
+                            <li><span class="key">"U"</span> - Undo last point</li>
+                            <li><span class="key">"Mouse wheel"</span> - Adjust point size</li>
+                        </ul>
+                        
+                        <h3 class="help-title">Instructions</h3>
+                        <ol class="instruction-list">
+                            <li>Load XYZ point cloud data</li>
+                            <li>Click "Draw Polygon" to begin selection</li>
+                            <li>Select points to form a polygon boundary</li>
+                            <li>Press Enter to close the polygon</li>
+                            <li>Save selected points or polygon</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="reference-section">
+                        <h3 class="reference-title">Reference</h3>
+                        <p class="reference-text">
+                            Jaboyedoff, M., et al. (2020). A review of methods used to estimate initial landslide failure surface depths and volumes. <i>Engineering Geology</i>, 267, 105478.
+                        </p>
+                        <p class="reference-doi">
+                            <a href="https://doi.org/10.1016/j.enggeo.2020.105478" target="_blank">DOI: 10.1016/j.enggeo.2020.105478</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="drawing-area">
+                <div class="canvas-container">
+                    <canvas id="drawingCanvas"></canvas>
+                    <div class="canvas-overlay">
+                        <div class="canvas-stats">
+                            <span id="pointCount">0 points</span> | 
+                            <span id="viewMode">2D View</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer fixed at bottom --> 
+    <footer class="footer">
+        <div class="footer-content">
+            <p>&copy; 2025 Risk Group | Université de Lausanne</p>
+        </div>
+    </footer>
+    
+    <!-- JS Scripts -->
+    <script src="hillshade.js"></script>
+    <script src="pointManager.js"></script>
+    <script src="polygon.js"></script>
+    <script src="measureTool.js"></script>
+    <script src="script.js"></script>
+</body>
+</html> 

@@ -23,10 +23,14 @@ include(joinpath(@__DIR__, "_dem/_utils.jl"))
 
 Description:
 ---
-Inverse Distance Weighting (IDW) interpolation method. `k` is the number of nearest 
-neighbors, `p` is the power parameter, `dem` is a coordinates Array with three columns 
-`(x, y, z)`, `idxs` is the index of the nearest neighbors, `ptslist` is the coordinates 
-Array of the particles, `tree` is the KDTree of the DEM.
+Inverse Distance Weighting (IDW) interpolation method. 
+
+- `k` is the number of nearest neighbors
+- `p` is the power parameter
+- `dem` is a coordinates Array with three columns `(x, y, z)`
+- `idxs` is the index of the nearest neighbors, 
+- `ptslist` is the coordinates Array of the particles
+- `tree` is the KDTree of the DEM
 """
 @views function IDW!(
     k      ::T1, 
@@ -68,19 +72,27 @@ end
 
 Description:
 ---
-Rasterize the DEM file to generate particles. `dem` is a coordinates Array with three 
-columns `(x, y, z)`. `h` is the space of the cloud points in `x` and `y` directions, 
-normally it is equal to the grid size in the MPM simulation. `k` is the number of nearest 
-neighbors (10 by default), `p` is the power parameter (2 by default), `trimbounds` is the 
-boundary of the particles, `dembounds` is the boundary of the DEM.
+Rasterize the DEM file to generate particles. 
+
+- `dem` is a coordinates Array with three columns `(x, y, z)`
+- `h` is the space of the cloud points in `x` and `y` directions, normally it is equal to 
+the grid size in the MPM simulation. 
+
+[optional]:
+
+- `k` is the number of nearest neighbors (10 by default)
+- `p` is the power parameter (2 by default)
+- `trimbounds` is the boundary of the particles, which is a N*2 array, each row is a vertex 
+of the polygon
+- `dembounds` is the rectangle boundary of the DEM, which is [xmin, xmax, ymin, ymax]
 """
 @views function rasterizeDEM(
     dem       ::AbstractMatrix{T2},
     h         ::T2; 
-    k         ::T1        = 10, 
-    p         ::T1        = 2, 
-    trimbounds::AbstractMatrix{T2}= [0.0 0.0], 
-    dembounds ::AbstractVector{T2}= [0.0, 0.0]
+    k         ::T1 = 10, 
+    p         ::T1 = 2, 
+    trimbounds::AbstractMatrix{T2} = [0.0 0.0], 
+    dembounds ::AbstractVector{T2} = [0.0, 0.0]
 ) where {T1, T2}
     # check input arguments
     size(dem, 2) ≠ 3 && throw(ArgumentError("DEM should have three columns: x, y, z"))
@@ -103,73 +115,64 @@ boundary of the particles, `dembounds` is the boundary of the DEM.
     ξ0 = meshbuilder(dem_xmin : h : dem_xmax, dem_ymin : h : dem_ymax)
     if trimbounds ≠ [0.0 0.0]
         @info "trimming particles outside the trimbounds"
-        pts = size(ξ0, 1)
-        rst = Vector{Bool}(undef, pts) 
-        @inbounds Threads.@threads for i in 1:pts
-            px = ξ0[i, 1]
-            py = ξ0[i, 2]
-            rst[i] = particle_in_polygon(px, py, trimbounds)
-        end
+        py_polygon = Polygon(trimbounds)
+        py_points = shapely.points(ξ0)
+        rst = pyconvert(Vector{Bool}, shapely.contains(py_polygon, py_points))
         ξ0 = ξ0[findall(rst), :]
     end
     ptslist = hcat(ξ0, zeros(T2, size(ξ0, 1)))
+    dem_vid = zeros(Bool, size(ptslist, 1))
 
-    # create KDTree for DEM
-    tree = KDTree(dem[:, 1:2]')
-    idxs = zeros(T1, size(ptslist, 1), k)
-    IDW!(k, p, dem, idxs, ptslist, tree)
-
-    # move the models to the grid (space = h)
-    @. ptslist[:, 3] = ceil(ptslist[:, 3] / h) * h
-    
-    return sort_pts_xy(ptslist)
-end
-
-@views function rasterizeDEM(
-    dem    ::AbstractMatrix{T2},
-    h      ::T2,
-    polygon::AbstractMatrix{T2}; 
-    k      ::Int = 10, 
-    p      ::Int = 2
-) where T2
-    pypolygon = Polygon(np.array(polygon))
-    # check input arguments
-    size(dem, 2) ≠ 3 && throw(ArgumentError("DEM should have three columns: x, y, z"))
-    h > 0 || throw(ArgumentError("h must be positive"))
-
-    # get particles from DEM domain
-    dem_xmin, dem_xmax = minimum(dem[:, 1]), maximum(dem[:, 1])
-    dem_ymin, dem_ymax = minimum(dem[:, 2]), maximum(dem[:, 2])
-
-    # trim the boundary based on the polygon
-    ξ0 = meshbuilder(dem_xmin : h : dem_xmax, dem_ymin : h : dem_ymax)
-    x_test = np.array(ξ0[:, 1])
-    y_test = np.array(ξ0[:, 2])
-    v_in_id = pyconvert(Vector, v_contains(pypolygon, x_test, y_test))
-    ptslist = hcat(ξ0[v_in_id, :], zeros(T2, count(v_in_id)))
-
-    # create KDTree for DEM
-    tree = KDTree(dem[:, 1:2]')
-    idxs = zeros(Int, size(ptslist, 1), k)
-    IDW!(k, p, dem, idxs, ptslist, tree)
-
-    # move the models to the grid (space = h)
-    @. ptslist[:, 3] = ceil(ptslist[:, 3] / h) * h
-    
-    return ptslist
-end
-
-function getpolygon(pts::AbstractMatrix; ratio=0.1)
-    pts_col = size(pts, 2)
-    if pts_col == 2
-        points = pts
-    elseif pts_col == 3
-        points = pts[:, 1:2]
-    else
-        throw(ArgumentError("points must be a Nx2 or Nx3 array"))
+    # create hash table for the pts
+    dict = Dict{NTuple{2, T2}, T2}((dem[i, 1], dem[i, 2]) => dem[i, 3] for i in axes(dem, 1))
+    # populate the ptslist with the z value
+    @inbounds for i in axes(ptslist, 1)
+        xy = (ptslist[i, 1], ptslist[i, 2])
+        if haskey(dict, xy)
+            ptslist[i, 3] = dict[xy]
+            dem_vid[i] = true
+        end
     end
-    point_polygon = concavehull(points, ratio, false)
-    return point_polygon.data
+    pts1 = ptslist[dem_vid, :]
+    pts2 = ptslist[.!dem_vid, :]
+
+    # create KDTree for DEM
+    tree = KDTree(dem[:, 1:2]')
+    idxs = zeros(T1, size(pts2, 1), k)
+    IDW!(k, p, dem, idxs, pts2, tree)
+
+    return sort_pts_xy(vcat(pts1, pts2))
+end
+
+"""
+    getpolygon(pts; ratio=0.1)
+
+Description:
+---
+Get the polygon from the given points. `pts` is a Nx2 or Nx3 array, and `ratio` is the
+parameter for the concave hull. The default value is 0.1.
+"""
+function getpolygon(points::AbstractArray; ratio::Real=0.1)
+    # inputs checking
+    ratio > 0 || error("ratio must be positive")
+    size(points, 1) ≥  3 || error("at least 3 points are required")
+    size(points, 2) == 2 || error("points must be 2D (Nx2 array)")
+    allow_holes = 0
+
+    # convert to GEOS datatype
+    geos_points = LibGEOS.MultiPoint([points[i, :] for i in axes(points, 1)])
+    ctx = LibGEOS.get_context(geos_points)
+    ptr = LibGEOS.GEOSConcaveHullByLength_r(ctx, geos_points, ratio, allow_holes)
+    conc = LibGEOS.geomFromGEOS(ptr)
+    conc == C_NULL && error("LibGEOS: Error in GEOSConvexHull") 
+
+    # convert back to julia datatype
+    outer_ring = LibGEOS.exteriorRing(conc)
+    cs_outer   = LibGEOS.getCoordSeq(outer_ring)
+    xs_outer   = LibGEOS.getX(cs_outer)
+    ys_outer   = LibGEOS.getY(cs_outer)
+
+    return hcat(xs_outer, ys_outer)
 end
 
 """
@@ -183,8 +186,8 @@ size in the MPM simulation. `bottom` is a value, which means the plane `z = bott
 """
 @views function dem2particle(
     dem   ::AbstractMatrix{T2}, 
-    h     ::T2, 
-    bottom::T2
+    h     ::Real, 
+    bottom::Real
 ) where T2
     # values check
     T1 = T2 == Float32 ? Int32 : Int64
@@ -236,8 +239,8 @@ surfaces. Note that layers are sorted from top to bottom.
 """
 @views function dem2particle(
     dem   ::AbstractMatrix{T2}, 
-    h     ::T2, 
-    bottom::T2,
+    h     ::Real, 
+    bottom::Real,
     layer ::AbstractVector{AbstractMatrix{T2}}
 ) where T2
     # values check
@@ -341,7 +344,7 @@ than the dem. `h` is the space of grid size in `z` direction used in the MPM sim
 """
 @views function dem2particle(
     dem   ::AbstractMatrix{T2}, 
-    h     ::T2, 
+    h     ::Real, 
     bottom::AbstractMatrix{T2}
 ) where T2
     # values check
@@ -401,7 +404,7 @@ are sorted from top to bottom.
 """
 @views function dem2particle(
     dem   ::AbstractMatrix{T2}, 
-    h     ::T2, 
+    h     ::Real, 
     bottom::AbstractMatrix{T2},
     layer ::Vector{Matrix{T2}}
 ) where T2

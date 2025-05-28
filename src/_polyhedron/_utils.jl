@@ -38,19 +38,20 @@ end
     areaPBC = cross2D(v2x - px, v2y - py, v3x - px , v3y - py ) / areaABC
     areaAPC = cross2D(px - v1x, py - v1y, v3x - v1x, v3y - v1y) / areaABC
 
-    alpha = areaPBC
-    beta  = areaAPC
-    gamma = 1 - alpha - beta
+    α = areaPBC
+    β = areaAPC
+    γ = 1 - α - β
 
     # 3) 用 (alpha,beta,gamma) 插值三顶点的 z 值
-    z = alpha*v1z + beta*v2z + gamma*v3z
+    z = α*v1z + β*v2z + γ*v3z
     
-    return floor((z - mzmin) / h) * h + mzmin
+    return z#, floor((z - mzmin) / h) * h + mzmin
 end
 
-function check_projection!(meshdata::GmshMesh{T1, T2}, h::T2, p2t::Vector, mxmin::T2, 
+function check_projection!(meshdata::DataMesh{T1, T2}, h::T2, p2t::Vector, mxmin::T2, 
     mymin::T2, niy::T1) where {T1, T2}
 
+    p2t = copy(p2t)
     @inbounds for i in axes(meshdata.data, 1)
         v1x, v1y = meshdata.data[i][1], meshdata.data[i][2]
         v2x, v2y = meshdata.data[i][4], meshdata.data[i][5] 
@@ -77,7 +78,7 @@ function check_projection!(meshdata::GmshMesh{T1, T2}, h::T2, p2t::Vector, mxmin
     return nothing
 end
 
-function fill_voxel!(pts::Vector{Bool}, p2t::Vector, meshdata::GmshMesh{T1, T2}, niy::T1, 
+function fill_voxel!(pts::Vector{Bool}, p2t::Vector, meshdata::DataMesh{T1, T2}, niy::T1, 
     mxmin::T2, mymin::T2, mzmin::T2, mxmax::T2, mymax::T2, mzmax::T2, h::T2) where {T1, T2}
 
     @inbounds for i in axes(p2t, 1)
@@ -93,8 +94,8 @@ function fill_voxel!(pts::Vector{Bool}, p2t::Vector, meshdata::GmshMesh{T1, T2},
                 push!(tri_order, z)
             end
             sort!(unique!(tri_order))
-            tri_order[  1] = ceil( T1, (tri_order[  1] - mzmin) / h) * h + mzmin
-            tri_order[end] = floor(T1, (tri_order[end] - mzmin) / h) * h + mzmin
+            #tri_order[  1] = ceil( T1, (tri_order[  1] - mzmin) / h) * h + mzmin
+            #tri_order[end] = floor(T1, (tri_order[end] - mzmin) / h) * h + mzmin
             fill_layers!(pts, px, py, tri_order, mxmin, mymin, mzmin, mxmax, mymax, mzmax, 
                 h)
         end

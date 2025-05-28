@@ -21,5 +21,5 @@ SLBL algorithm and its results. The server can be accessed remotely or locally.
 """
 function SLBL3D_gui(; remote::Bool=false)
     host = remote==true ? "0.0.0.0" : "127.0.0.1"
-    serve(host=host, dir=@__DIR__)
+    serve(host=host, dir=joinpath(@__DIR__, "website"))
 end 

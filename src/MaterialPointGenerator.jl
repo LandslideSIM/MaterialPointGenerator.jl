@@ -11,10 +11,9 @@
 
 module MaterialPointGenerator
 
-using CondaPkg, DelimitedFiles, Gmsh, NearestNeighbors, Printf, PythonCall
+using CondaPkg, DelimitedFiles, LibGEOS, NearestNeighbors, Printf, PythonCall
 using LinearAlgebra: mul!, eigen, Symmetric, normalize
 using Statistics: mean
-using GMT: concavehull
 using LiveServer: serve
 using PrecompileTools: @setup_workload, @compile_workload
 
@@ -22,10 +21,10 @@ import LinearAlgebra.LAPACK: syev!
 
 const trimesh      = PythonCall.pynew()
 const np           = PythonCall.pynew()
-const o3d          = PythonCall.pynew()
+const rtree        = PythonCall.pynew()
+const shapely      = PythonCall.pynew()
 const MultiPolygon = PythonCall.pynew()
 const Polygon      = PythonCall.pynew()
-const LineString   = PythonCall.pynew()
 const Point        = PythonCall.pynew()
 const mapping      = PythonCall.pynew()
 const unary_union  = PythonCall.pynew()
@@ -36,20 +35,19 @@ const pygmsh       = PythonCall.pynew()
 const pyKDTree     = PythonCall.pynew()
 const pytime       = PythonCall.pynew()
 const embreex      = PythonCall.pynew()
-const ConvexHull   = PythonCall.pynew()
-const v_contains   = PythonCall.pynew()
 
 function __init__()
     @info "checking environment..."
     # import Python modules
     PythonCall.pycopy!(trimesh , pyimport("trimesh" ))
     PythonCall.pycopy!(np      , pyimport("numpy"   ))
+    PythonCall.pycopy!(rtree   , pyimport("rtree"   ))
+    PythonCall.pycopy!(shapely , pyimport("shapely" ))
     PythonCall.pycopy!(rasterio, pyimport("rasterio"))
     PythonCall.pycopy!(pygmsh  , pyimport("gmsh"    ))
     PythonCall.pycopy!(pytime  , pyimport("time"    ))
     # import their submudules
     PythonCall.pycopy!(Polygon     , pyimport("shapely.geometry"  ).Polygon     )
-    PythonCall.pycopy!(LineString  , pyimport("shapely.geometry"  ).LineString  )
     PythonCall.pycopy!(Point       , pyimport("shapely.geometry"  ).Point       )
     PythonCall.pycopy!(mapping     , pyimport("shapely.geometry"  ).mapping     )
     PythonCall.pycopy!(unary_union , pyimport("shapely.ops"       ).unary_union )
@@ -57,8 +55,6 @@ function __init__()
     PythonCall.pycopy!(rasterize   , pyimport("rasterio.features" ).rasterize   )
     PythonCall.pycopy!(pyKDTree    , pyimport("scipy.spatial"     ).cKDTree     )
     PythonCall.pycopy!(MultiPolygon, pyimport("shapely.geometry"  ).MultiPolygon)
-    PythonCall.pycopy!(ConvexHull  , pyimport("scipy.spatial"     ).ConvexHull  )
-    PythonCall.pycopy!(v_contains  , pyimport("shapely.vectorized").contains    )
     if !Sys.isapple()
         try 
             if !haskey(CondaPkg.current_pip_packages(), "embreex")
@@ -94,6 +90,8 @@ include(joinpath(@__DIR__, "utils.jl"        ))
     @compile_workload begin
         # functions in utils.jl
         getnormals(points)
+        # function in dem.jl
+        getpolygon(rand(10, 2))
     end
 end
 
