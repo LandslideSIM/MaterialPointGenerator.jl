@@ -407,9 +407,10 @@ mask = particle_in_polyhedron(stl_file, points)
     stl_file::String, 
     points  ::AbstractMatrix{T}
 ) where T<:Real
-    embreex_s = PythonCall.pyisnull(embreex) ? false : true
     size(points, 2) == 3 || error("points must be 3D coordinates (N, 3)")
-    mesh = trimesh.load(stl_file, force="mesh", use_embree=embreex_s)
+    mesh = trimesh.load(stl_file, force="mesh")
+    pyconvert(Bool, mesh.is_watertight) || error(
+        "The mesh is not watertight. Please check the mesh quality.")
     mask = mesh.contains(np.array(points))
     return pyconvert(Vector{Bool}, mask)
 end
