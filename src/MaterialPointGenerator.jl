@@ -11,10 +11,9 @@
 
 module MaterialPointGenerator
 
-using CondaPkg, DelimitedFiles, NearestNeighbors, Printf, PythonCall
+using CondaPkg, DelimitedFiles, LibGEOS, NearestNeighbors, Printf, PythonCall
 using LinearAlgebra: mul!, eigen, Symmetric, normalize
 using Statistics: mean
-using GMT: concavehull
 using LiveServer: serve
 using PrecompileTools: @setup_workload, @compile_workload
 
@@ -89,6 +88,8 @@ include(joinpath(@__DIR__, "utils.jl"        ))
     @compile_workload begin
         # functions in utils.jl
         getnormals(points)
+        # function in dem.jl
+        getpolygon(rand(10, 2))
     end
 end
 

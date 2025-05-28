@@ -152,17 +152,27 @@ Description:
 Get the polygon from the given points. `pts` is a Nx2 or Nx3 array, and `ratio` is the
 parameter for the concave hull. The default value is 0.1.
 """
-function getpolygon(pts::AbstractMatrix; ratio=0.1)
-    pts_col = size(pts, 2)
-    if pts_col == 2
-        points = pts
-    elseif pts_col == 3
-        points = pts[:, 1:2]
-    else
-        throw(ArgumentError("points must be a Nx2 or Nx3 array"))
-    end
-    point_polygon = concavehull(points, ratio, false)
-    return point_polygon.data
+function getpolygon(points::AbstractArray; ratio::Real=0.1)
+    # inputs checking
+    ratio > 0 || error("ratio must be positive")
+    size(points, 1) ≥  3 || error("at least 3 points are required")
+    size(points, 2) == 2 || error("points must be 2D (Nx2 array)")
+    allow_holes = 0
+
+    # convert to GEOS datatype
+    geos_points = LibGEOS.MultiPoint([points[i, :] for i in axes(points, 1)])
+    ctx = LibGEOS.get_context(geos_points)
+    ptr = LibGEOS.GEOSConcaveHullByLength_r(ctx, geos_points, ratio, allow_holes)
+    conc = LibGEOS.geomFromGEOS(ptr)
+    conc == C_NULL && error("LibGEOS: Error in GEOSConvexHull") 
+
+    # convert back to julia datatype
+    outer_ring = LibGEOS.exteriorRing(conc)
+    cs_outer   = LibGEOS.getCoordSeq(outer_ring)
+    xs_outer   = LibGEOS.getX(cs_outer)
+    ys_outer   = LibGEOS.getY(cs_outer)
+
+    return hcat(xs_outer, ys_outer)
 end
 
 """
