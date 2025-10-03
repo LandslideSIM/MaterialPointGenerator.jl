@@ -1,7 +1,7 @@
 name = "MaterialPointGenerator"
 uuid = "18deba1c-5063-41ee-a388-01f264c5a914"
 authors = ["ZenanH <zenan.huo@outlook.com>"]
-version = "0.1.24"
+version = "0.2.0"
 
 [deps]
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
@@ -15,7 +15,7 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [compat]
 DelimitedFiles = "1"
-FastPointQuery = "0.1"
+FastPointQuery = "0.2"
 LiveServer = "1.5"
 NearestNeighbors = "0.4"
 PrecompileTools = "1.2"
