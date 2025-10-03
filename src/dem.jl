@@ -9,14 +9,10 @@
 |  Functions  : 01. IDW!                                                                   |
 |               02. rasterizeDEM                                                           |
 |               03. dem2particle                                                           |
-|               04. getpolygon                                                             |
 +==========================================================================================#
 
 export dem2particle
 export rasterizeDEM
-export getpolygon
-
-include(joinpath(@__DIR__, "_dem/_utils.jl"))
 
 """
     IDW!(k, p, dem, idxs, ptslist, tree)
@@ -82,8 +78,7 @@ the grid size in the MPM simulation.
 
 - `k` is the number of nearest neighbors (10 by default)
 - `p` is the power parameter (2 by default)
-- `trimbounds` is the boundary of the particles, which is a N*2 array, each row is a vertex 
-of the polygon
+- `trimbounds` is the boundary of the particles, which is a polygon defined by `get_polygon`
 - `dembounds` is the rectangle boundary of the DEM, which is [xmin, xmax, ymin, ymax]
 """
 @views function rasterizeDEM(
@@ -91,7 +86,7 @@ of the polygon
     h         ::T2; 
     k         ::T1 = 10, 
     p         ::T1 = 2, 
-    trimbounds::AbstractMatrix{T2} = [0.0 0.0], 
+    trimbounds::QueryPolygon=get_polygon([0 0; 1 0; 0 1]),
     dembounds ::AbstractVector{T2} = [0.0, 0.0]
 ) where {T1, T2}
     # check input arguments
@@ -99,7 +94,6 @@ of the polygon
     h > 0 || throw(ArgumentError("h must be positive"))
     dembounds ≠ [0.0, 0.0] && length(dembounds) ≠ 4 && throw(ArgumentError(
         "dembounds must have 4 elements: [xmin, xmax, ymin, ymax]"))
-    size(trimbounds, 2) ≠ 2 && throw(ArgumentError("trimbounds must have 2 columns"))
 
     # get particles from DEM domain
     if dembounds ≠ [0.0, 0.0]
@@ -113,12 +107,13 @@ of the polygon
         dem_ymin, dem_ymax = minimum(dem[:, 2]), maximum(dem[:, 2])
     end
     ξ0 = meshbuilder(dem_xmin : h : dem_xmax, dem_ymin : h : dem_ymax)
-    if trimbounds ≠ [0.0 0.0]
+    if trimbounds.coord ≠ get_polygon([0 0; 1 0; 0 1]).coord
         @info "trimming particles outside the trimbounds"
-        py_polygon = Polygon(trimbounds)
-        py_points = shapely.points(ξ0)
-        rst = pyconvert(Vector{Bool}, shapely.contains(py_polygon, py_points))
-        ξ0 = ξ0[findall(rst), :]
+        # py_polygon = Polygon(trimbounds)
+        # py_points = shapely.points(ξ0)
+        # rst = pyconvert(Vector{Bool}, shapely.contains(py_polygon, py_points))
+        mask = pip_query(trimbounds, ξ0; edge=true)
+        ξ0 = ξ0[mask, :]
     end
     ptslist = hcat(ξ0, zeros(T2, size(ξ0, 1)))
     dem_vid = zeros(Bool, size(ptslist, 1))
@@ -141,38 +136,7 @@ of the polygon
     idxs = zeros(T1, size(pts2, 1), k)
     IDW!(k, p, dem, idxs, pts2, tree)
 
-    return sort_pts_xy(vcat(pts1, pts2))
-end
-
-"""
-    getpolygon(pts; ratio=0.1)
-
-Description:
----
-Get the polygon from the given points. `pts` is a Nx2 or Nx3 array, and `ratio` is the
-parameter for the concave hull. The default value is 0.1.
-"""
-function getpolygon(points::AbstractArray; ratio::Real=0.1)
-    # inputs checking
-    ratio > 0 || error("ratio must be positive")
-    size(points, 1) ≥  3 || error("at least 3 points are required")
-    size(points, 2) == 2 || error("points must be 2D (Nx2 array)")
-    allow_holes = 0
-
-    # convert to GEOS datatype
-    geos_points = LibGEOS.MultiPoint([points[i, :] for i in axes(points, 1)])
-    ctx = LibGEOS.get_context(geos_points)
-    ptr = LibGEOS.GEOSConcaveHullByLength_r(ctx, geos_points, ratio, allow_holes)
-    conc = LibGEOS.geomFromGEOS(ptr)
-    conc == C_NULL && error("LibGEOS: Error in GEOSConvexHull") 
-
-    # convert back to julia datatype
-    outer_ring = LibGEOS.exteriorRing(conc)
-    cs_outer   = LibGEOS.getCoordSeq(outer_ring)
-    xs_outer   = LibGEOS.getX(cs_outer)
-    ys_outer   = LibGEOS.getY(cs_outer)
-
-    return hcat(xs_outer, ys_outer)
+    return sort_pts(vcat(pts1, pts2), z=false)
 end
 
 """
@@ -185,10 +149,11 @@ Generate particles from a given DEM file. `dem` is a coordinates Array with thre
 size in the MPM simulation. `bottom` is a value, which means the plane `z = bottom`.
 """
 @views function dem2particle(
-    dem   ::AbstractMatrix{T2}, 
+    demr   ::AbstractMatrix{T2}, 
     h     ::Real, 
     bottom::Real
 ) where T2
+    dem = copy(demr)
     # values check
     T1 = T2 == Float32 ? Int32 : Int64
     size(dem, 2) == 3 || throw(ArgumentError("DEM should have three columns: x, y, z"))
@@ -222,7 +187,7 @@ size in the MPM simulation. `bottom` is a value, which means the plane `z = bott
     pts_cen[:, 3] .+= (h * T2(0.5)) .+ bottom
 
     # populate the particles in each cell
-    pts = populate_pts(pts_cen, h)
+    pts = filling_pts(pts_cen, h)
     return pts
 end
 
@@ -241,7 +206,7 @@ surfaces. Note that layers are sorted from top to bottom.
     dem   ::AbstractMatrix{T2}, 
     h     ::Real, 
     bottom::Real,
-    layer ::AbstractVector{AbstractMatrix{T2}}
+    layer ::AbstractVector
 ) where T2
     # values check
     T1 = T2 == Float32 ? Int32 : Int64
@@ -325,7 +290,7 @@ surfaces. Note that layers are sorted from top to bottom.
     pts_cen[:, 3] .+= (h * T2(0.5)) .+ bottom
 
     # populate the particles in each cell
-    pts = populate_pts(pts_cen, h)
+    pts = filling_pts(pts_cen, h)
     nid = repeat(pts_nid, inner=8)
 
     return pts, nid
@@ -343,16 +308,18 @@ Array with three columns (x, y, z), which has to be initialized with the struct 
 than the dem. `h` is the space of grid size in `z` direction used in the MPM simulation.
 """
 @views function dem2particle(
-    dem   ::AbstractMatrix{T2}, 
+    demr  ::AbstractMatrix{T2}, 
     h     ::Real, 
-    bottom::AbstractMatrix{T2}
+    bottomr::AbstractMatrix{T2}
 ) where T2
+    dem = copy(demr)
+    bottom = copy(bottomr)
     # values check
     T1 = T2 == Float32 ? Int32 : Int64
     size(dem, 2) == 3 || throw(ArgumentError("DEM should have three columns: x, y, z"))
     size(bottom, 2) == 3 || throw(ArgumentError("Bottom should have three columns: x, y, z"))
     h > 0 || throw(ArgumentError("The cloud point space on z: $(h) should be positive"))
-    all(bottom[:, 3] .< dem[:, 3]) || throw(ArgumentError(
+    all(bottom[:, 3] .≤ dem[:, 3]) || throw(ArgumentError(
         "The bottom surface should be lower than the DEM"))
     all(dem[:, 1:2] .== bottom[:, 1:2]) || throw(ArgumentError(
         "The bottom should have the same x and y coordinates as the dem"))
@@ -387,7 +354,7 @@ than the dem. `h` is the space of grid size in `z` direction used in the MPM sim
     pts_cen[:, 3] .+= (h * 0.5) .+ z_oft
 
     # populate the particles in each cell
-    pts = populate_pts(pts_cen, h)
+    pts = filling_pts(pts_cen, h)
     return pts
 end
 
@@ -406,14 +373,14 @@ are sorted from top to bottom.
     dem   ::AbstractMatrix{T2}, 
     h     ::Real, 
     bottom::AbstractMatrix{T2},
-    layer ::Vector{Matrix{T2}}
+    layer ::AbstractVector
 ) where T2
     # values check
     T1 = T2 == Float32 ? Int32 : Int64
     size(dem, 2) == 3 || throw(ArgumentError("DEM should have three columns: x, y, z"))
     size(bottom, 2) == 3 || throw(ArgumentError("Bottom should have three columns: x, y, z"))
     h > 0 || throw(ArgumentError("The cloud point space on z: $(h) should be positive"))
-    all(bottom[:, 3] .< dem[:, 3]) || throw(ArgumentError(
+    all(bottom[:, 3] .≤ dem[:, 3]) || throw(ArgumentError(
         "The bottom surface should be lower than the DEM"))
     all(dem[:, 1:2] .== bottom[:, 1:2]) || throw(ArgumentError(
         "The bottom should have the same x and y coordinates as the dem"))
@@ -486,7 +453,7 @@ are sorted from top to bottom.
     pts_cen[:, 3] .+= (h * 0.5) .+ z_oft
 
     # populate the particles in each cell
-    pts = populate_pts(pts_cen, h)
+    pts = filling_pts(pts_cen, h)
     nid = repeat(pts_nid, inner=8)
     return pts, nid
 end
