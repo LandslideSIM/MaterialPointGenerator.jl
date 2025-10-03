@@ -1,28 +1,24 @@
 name = "MaterialPointGenerator"
 uuid = "18deba1c-5063-41ee-a388-01f264c5a914"
 authors = ["ZenanH <zenan.huo@outlook.com>"]
-version = "0.1.23"
+version = "0.1.25"
 
 [deps]
-CondaPkg = "992eb4ea-22a4-4c89-a5bb-47a3300528ab"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
-LibGEOS = "a90b1aa1-3769-5649-ba7e-abc5a9d163eb"
+FastPointQuery = "b325ad68-3eea-4afa-b43e-4b8e378fd76d"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LiveServer = "16fef848-5104-11e9-1b77-fb7a48bbb589"
+Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 NearestNeighbors = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
 PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
-PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
-Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
-CondaPkg = "0.2"
 DelimitedFiles = "1"
-LibGEOS = "0.9"
+FastPointQuery = "0.1"
 LiveServer = "1.5"
 NearestNeighbors = "0.4"
 PrecompileTools = "1.2"
-PythonCall = "0.9"
 julia = "1.11"
 
 [extras]

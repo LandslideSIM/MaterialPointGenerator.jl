@@ -7,41 +7,40 @@
 |  Start Date : 01/01/2022                                                                 |
 |  Affiliation: Risk Group, UNIL-ISTE                                                      |
 |  Functions  : 01. SLBL3D                                                                 |
-|               02. getvolume                                                              |
+|               02. get_volume                                                             |
 +==========================================================================================#
 
 export SLBL3D
-export getvolume
+export get_volume
 
 """
-    SLBL3D(dem::AbstractMatrix, h::Real, zmax::Real, L::Real; C::Real=-1)
+    SLBL3D(dem::AbstractMatrix, polygon::QueryPolygon, zmax::Real, L::Real; C::Real=-1)
 
 Description:
 ---
-Calculate the failure surface (positive `zmax`) or the reconstruction surface (negative 
-`zmax`) by SLBL method.
+The SLBL3D function implements the SLBL method for 3D DEM.
 
-- `dem` is a Nx3 matrix, where N is the number of points, and each row contains the x, y, z
-coordinates of a point. Note that `dem` should be rasterized ractangle grid in x-y plane.
-- `polygon` is a Nx2 matrix, each row contains the x, y coordinates of a polygon. The polygon is used to 
-determine the valid particles for the SLBL method.
-- `zmax` is the maximum height of the failure surface.
-- `L` is the length of the slope, which must be positive.
-- `C` is an optional parameter, if it is -1 (by default), it will calcuated autometically. 
-Otherwise, it will be used as the constant value.
+- `dem`: A Nx3 matrix representing the DEM surface, where N is the number of points. Each 
+row contains the x, y, z coordinates of a point.
+- `polygon`: An instance of type `QueryPolygon`, can be obtained by api `get_polygon`.
+- `zmax`: A real number representing the maximum height of the failure surface. If `zmax`
+is greater than 0, the function calculates the failure surface; if `zmax` is less than 0,
+it calculates the reconstruction surface.
+- `L`: A real number representing the length scale of the SLBL method.
+- `C`: A real number representing the constant in the SLBL method. If `C` is set to -1,
+it will be calculated based on the `zmax` and `L` values. Default is -1.
 """
 @views function SLBL3D(
     dem    ::AbstractMatrix, 
-    polygon::AbstractMatrix, 
+    polygon::QueryPolygon, 
     zmax   ::Real, 
     L      ::Real; 
-    C      ::Real=-1
+    C      ::Real=-1,
+    ϵ      ::Real=-1
 )
     # inputs check
+    dem = sort_pts(dem, z=false)
     size(dem, 2) == 3 || throw(ArgumentError("dem must be a Nx3 array"))
-    n, m = size(polygon)
-    n ≥ 3 || throw(ArgumentError("polygon must be a Nx2 array with N >= 3"))
-    m == 2 || throw(ArgumentError("polygon must be a Nx2 array"))
     zmax ≠ 0 || throw(ArgumentError("zmax cannot be zero"))
     L > 0 || throw(ArgumentError("L must be positive"))
 
@@ -53,7 +52,7 @@ Otherwise, it will be used as the constant value.
     c = C == -1 ? (4 * ((zmax/L) / L) * h * h) : C
     
     # get valid particle id for the SLBL
-    v_id = findall(particle_in_polygon(polygon, dem[:, 1:2]))
+    v_id = findall(pip_query(polygon, dem[:, 1:2], edge=false))
     grid_c = copy(dem)
     grid_p = copy(dem)
     ny = length(unique(dem[:, 2]))
@@ -61,7 +60,7 @@ Otherwise, it will be used as the constant value.
     # SLBL calculation
     if zmax > 0 # failure surface
         iter_c = true; while iter_c
-            for i in v_id
+            Threads.@threads for i in v_id
                 n_u = i + 1
                 n_d = i - 1
                 n_l = i - ny
@@ -73,7 +72,11 @@ Otherwise, it will be used as the constant value.
                 grid_c[i, 3] = z_temp < grid_p[i, 3] ? z_temp : grid_c[i, 3]
             end
 
-            iter_c = maximum(abs.(grid_p[:, 3] .- grid_c[:, 3])) < 1e-4 ? false : true
+            cϵ = ϵ == -1 ? 1e-4 : ϵ
+
+            iter_c = maximum(abs.(grid_p[:, 3] .- grid_c[:, 3])) < cϵ ? false : true
+            #@info maximum(abs.(grid_p[:, 3] .- grid_c[:, 3]))
+
             grid_p .= grid_c
         end
     else # reconstruction surface
@@ -95,8 +98,8 @@ Otherwise, it will be used as the constant value.
         end
     end
 
-    dem_before = sort_pts_xy(dem)
-    dem_after = sort_pts_xy(grid_c)
+    dem_before = sort_pts(dem, z=false)
+    dem_after = sort_pts(grid_c, z=false)
 
     if zmax > 0
         all(dem_after[:, 3] .≤ dem_before[:, 3]) || throw(ArgumentError(
@@ -127,17 +130,15 @@ end
 
 @views function SLBL3D(
     dem    ::AbstractMatrix, 
-    polygon::AbstractMatrix, 
+    polygon::QueryPolygon, 
     zmax   ::Real, 
     L      ::Real,
     plane  ::Function; 
     C      ::Real=-1
 )
     # inputs check
+    dem = sort_pts(dem, z=false)
     size(dem, 2) == 3 || throw(ArgumentError("dem must be a Nx3 array"))
-    n, m = size(polygon)
-    n ≥ 3 || throw(ArgumentError("polygon must be a Nx2 array with N >= 3"))
-    m == 2 || throw(ArgumentError("polygon must be a Nx2 array"))
     zmax ≠ 0 || throw(ArgumentError("zmax cannot be zero"))
     L > 0 || throw(ArgumentError("L must be positive"))
 
@@ -149,7 +150,7 @@ end
     c = C == -1 ? (4 * ((zmax/L) / L) * h * h) : C
     
     # get valid particle id for the SLBL
-    v_id = findall(particle_in_polygon(polygon, dem[:, 1:2]))
+    v_id = pip_query(polygon, dem[:, 1:2])
     grid_c = copy(dem)
     grid_p = copy(dem)
     ny = length(unique(dem[:, 2]))
@@ -168,11 +169,17 @@ end
 
                 grid_c[i, 3] = z_temp < grid_p[i, 3] ? z_temp : grid_c[i, 3]
             end
-            
-            _, i = findmin(grid_c[:, 3])
-            if (maximum(abs.(grid_p[:, 3] .- grid_c[:, 3])) < 1e-4) ||
-               (plane(grid_c[i, 1], grid_c[i, 2], grid_c[i, 3]))
+
+            z_diff = maximum(abs.(grid_p[:, 3] .- grid_c[:, 3]))
+            if z_diff < 1e-4
                 iter_c = false
+            else
+                @inbounds for i in axes(grid_c, 1)
+                    if plane(grid_c[i, 1], grid_c[i, 2], grid_c[i, 3])
+                        iter_c = false
+                        break
+                    end
+                end
             end
 
             grid_p .= grid_c
@@ -201,8 +208,8 @@ end
         end
     end
 
-    dem_before = sort_pts_xy(dem)
-    dem_after = sort_pts_xy(grid_c)
+    dem_before = sort_pts(dem, z=false)
+    dem_after = sort_pts(grid_c, z=false)
 
     if zmax > 0
         all(dem_after[:, 3] .≤ dem_before[:, 3]) || throw(ArgumentError(
@@ -232,7 +239,7 @@ end
 end
 
 """
-    getvolume(dem1::AbstractMatrix, dem2::AbstractMatrix)
+    get_volume(dem1::AbstractMatrix, dem2::AbstractMatrix)
 
 Description:
 ---
@@ -243,7 +250,7 @@ or vice versa.
 `dem1` and `dem2` are Nx3 matrices, where N is the number of points, and each row contains
 the x, y, z coordinates of a point. Note that `dem1` and `dem2` should be rasterized.
 """
-@views function getvolume(dem1::AbstractMatrix, dem2::AbstractMatrix)
+@views function get_volume(dem1::AbstractMatrix, dem2::AbstractMatrix)
     # inputs check
     dem1[:, 1:2] == dem2[:, 1:2] || throw(ArgumentError(
         "dem1 and dem2 must have the same x-y coordinates"))
