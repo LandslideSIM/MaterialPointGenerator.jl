@@ -50,6 +50,29 @@ julia> ]
 |:----:|
 | <img src="docs/src/assets/showcase/slbl_gui.png" width="660"> |
 
+## Citation 🔥
+
+If you find `MaterialPointGenerator.jl` useful or have used it in your research, please cite it as follows:
+
+```bib
+@article{Huo2025,
+  author  = {Huo, Zenan
+             and Zheng, Xiangcou
+             and Jaboyedoff, Michel
+             and Podladchikov, Yury
+             and Mei, Gang
+             and Tang, Xiong},
+  title   = {An efficient framework for structured material particle generation in multi-context modeling},
+  journal = {Engineering with Computers},
+  year    = {2025},
+  month   = {Oct},
+  day     = {17},
+  issn    = {1435-5663},
+  doi     = {10.1007/s00366-025-02222-z},
+  url     = {https://doi.org/10.1007/s00366-025-02222-z}
+}
+```
+
 ## Acknowledgement 👍
 
 This project is sponserd by [Risk Group | Université de Lausanne](https://wp.unil.ch/risk/) and [China Scholarship Council [中国国家留学基金管理委员会]](https://www.csc.edu.cn/).
