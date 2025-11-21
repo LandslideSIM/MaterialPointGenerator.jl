@@ -1,5 +1,4 @@
 using MaterialPointGenerator
-#using WGLMakie
 using Test
 
 # stl_model = readSTL3D(joinpath(@__DIR__, "wheel.stl"))
