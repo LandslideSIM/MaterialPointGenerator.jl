@@ -106,7 +106,7 @@ the grid size in the MPM simulation.
         dem_xmin, dem_xmax = minimum(dem[:, 1]), maximum(dem[:, 1])
         dem_ymin, dem_ymax = minimum(dem[:, 2]), maximum(dem[:, 2])
     end
-    ξ0 = meshbuilder(dem_xmin : h : dem_xmax, dem_ymin : h : dem_ymax)
+    ξ0 = meshbuilder([dem_xmin, dem_xmax], [dem_ymin, dem_ymax], h)
     if trimbounds.coord ≠ get_polygon([0 0; 1 0; 0 1]).coord
         @info "trimming particles outside the trimbounds"
         # py_polygon = Polygon(trimbounds)
@@ -354,8 +354,9 @@ than the dem. `h` is the space of grid size in `z` direction used in the MPM sim
     pts_cen[:, 3] .+= (h * 0.5) .+ z_oft
 
     # populate the particles in each cell
-    pts = filling_pts(pts_cen, h)
-    return pts
+    #pts = filling_pts(pts_cen, h)
+    #return pts
+    return pts_cen
 end
 
 """
