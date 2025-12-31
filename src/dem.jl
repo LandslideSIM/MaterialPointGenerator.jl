@@ -354,9 +354,9 @@ than the dem. `h` is the space of grid size in `z` direction used in the MPM sim
     pts_cen[:, 3] .+= (h * 0.5) .+ z_oft
 
     # populate the particles in each cell
-    #pts = filling_pts(pts_cen, h)
-    #return pts
-    return pts_cen
+    pts = filling_pts(pts_cen, h)
+    
+    return pts
 end
 
 """
